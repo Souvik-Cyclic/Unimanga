@@ -24,3 +24,29 @@ app.use(express.json());
 // Interactive API reference. /docs.json serves the raw OpenAPI document for
 // client generators and import into Postman/Insomnia.
 app.get('/docs.json', (req, res) => res.json(openApiSpec));
+app.use(
+  '/docs',
+  swaggerUi.serve,
+  swaggerUi.setup(openApiSpec, {
+    customSiteTitle: 'UniManga API',
+    swaggerOptions: { persistAuthorization: true },
+  })
+);
+
+app.use('/api/auth', authRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/library', libraryRoutes);
+app.use('/api/manga', mangaRoutes);
+app.use('/api/websites', websiteRoutes);
+app.use('/api/history', historyRoutes);
+
+app.get('/', (req, res) => {
+  res.json({
+    message: 'UniManga  is running!',
+    status: 'healthy',
+    docs: '/docs',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+export default app;
