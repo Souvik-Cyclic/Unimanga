@@ -62,3 +62,67 @@ export const useAuthStore = create<AuthState>((set) => ({
                 isLoading: false,
             });
         } catch (error) {
+            set({
+                error: error as string,
+                isLoading: false,
+                isAuthenticated: false,
+            });
+            throw error;
+        }
+    },
+
+    logout: async () => {
+        set({ isLoading: true });
+        try {
+            await authService.logout();
+            set({
+                user: null,
+                token: null,
+                isAuthenticated: false,
+                isLoading: false,
+            });
+        } catch (error) {
+            set({ isLoading: false });
+            console.error('Logout error:', error);
+        }
+    },
+
+    initialize: async () => {
+        set({ isLoading: true });
+        try {
+            const token = await authService.getToken();
+            const user = await authService.getUser();
+
+            if (token && user) {
+                set({
+                    token,
+                    user,
+                    isAuthenticated: true,
+                    isLoading: false,
+                });
+            } else {
+                set({
+                    token: null,
+                    user: null,
+                    isAuthenticated: false,
+                    isLoading: false,
+                });
+            }
+        } catch (error) {
+            set({
+                token: null,
+                user: null,
+                isAuthenticated: false,
+                isLoading: false,
+            });
+        }
+    },
+
+    updateUser: (partial) => {
+        set((state) => ({
+            user: state.user ? { ...state.user, ...partial } : state.user,
+        }));
+    },
+
+    clearError: () => set({ error: null }),
+}));
