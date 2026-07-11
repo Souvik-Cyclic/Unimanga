@@ -97,3 +97,103 @@ export const authService = {
     }
   },
 
+  async getUser(): Promise<any | null> {
+    try {
+      const userStr = await AsyncStorage.getItem("user");
+      return userStr ? JSON.parse(userStr) : null;
+    } catch (error) {
+      return null;
+    }
+  },
+
+  async isAuthenticated(): Promise<boolean> {
+    const token = await this.getToken();
+    return !!token;
+  },
+
+  async getProfile(): Promise<ProfileResponse> {
+    try {
+      const token = await this.getToken();
+      const response = await axios.get<ProfileResponse>(`${API_URL}/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError = error.response?.data as ApiError;
+        throw apiError?.message || "Failed to load profile";
+      }
+      throw "Failed to load profile";
+    }
+  },
+
+  async updateProfile(data: {
+    username?: string;
+    email?: string;
+  }): Promise<UpdateProfileResponse> {
+    try {
+      const token = await this.getToken();
+      const response = await axios.put<UpdateProfileResponse>(
+        `${API_URL}/profile`,
+        data,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      if (response.data.user) {
+        await AsyncStorage.setItem("user", JSON.stringify(response.data.user));
+      }
+
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError = error.response?.data as ApiError;
+        throw apiError?.message || "Profile update failed";
+      }
+      throw "Profile update failed";
+    }
+  },
+
+  async changePassword(
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    try {
+      const token = await this.getToken();
+      const response = await axios.put<{ message: string }>(
+        `${API_URL}/password`,
+        { currentPassword, newPassword },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError = error.response?.data as ApiError;
+        throw apiError?.message || "Password change failed";
+      }
+      throw "Password change failed";
+    }
+  },
+
+  async deleteAccount(password: string): Promise<{ message: string }> {
+    try {
+      const token = await this.getToken();
+      const response = await axios.delete<{ message: string }>(
+        `${API_URL}/account`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          data: { password },
+        },
+      );
+
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError = error.response?.data as ApiError;
+        throw apiError?.message || "Account deletion failed";
+      }
+      throw "Account deletion failed";
+    }
+  },
+};
