@@ -91,3 +91,96 @@ export default function LoginScreen() {
           columns={3}
           rows={3}
           cellHeight={170}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 430 }}
+        />
+      ) : (
+        <PanelMontage height={280} style={{ position: 'absolute', top: 0, left: 0, right: 0 }} />
+      )}
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={{ paddingHorizontal: 24, paddingVertical: 40 }}>
+            {/* Wordmark, set as a stacked masthead */}
+            <View style={{ marginBottom: 36 }}>
+              <Eyebrow style={{ marginBottom: 10 }}>One library, every source</Eyebrow>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+                <Text style={[type.display, { fontSize: 52, lineHeight: 54, textTransform: 'uppercase' }]}>
+                  UniManga
+                </Text>
+                <View
+                  style={{ width: 11, height: 11, backgroundColor: colors.accent, marginLeft: 5, marginBottom: 11 }}
+                />
+              </View>
+              <View style={{ height: 3, backgroundColor: colors.accent, width: 76, marginTop: 14 }} />
+            </View>
+
+            <Field
+              label="Email"
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              textContentType="emailAddress"
+              returnKeyType="next"
+            />
+
+            <Field
+              label="Password"
+              placeholder="Your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoComplete="password"
+              textContentType="password"
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
+              enablesReturnKeyAutomatically
+              right={
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={{ paddingHorizontal: 14, paddingVertical: 12 }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={19}
+                    color={colors.tone}
+                  />
+                </TouchableOpacity>
+              }
+            />
+
+            <PrimaryButton
+              label="Sign in"
+              onPress={handleLogin}
+              loading={isLoading}
+              style={{ marginTop: 6 }}
+            />
+
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 28 }}>
+              <Data size={12}>NEW HERE? </Data>
+              <TouchableOpacity onPress={() => router.push('/(auth)/signup')} activeOpacity={0.7}>
+                <Data size={12} color={colors.accent}>
+                  CREATE AN ACCOUNT
+                </Data>
+              </TouchableOpacity>
+            </View>
+
+            <Halftone style={{ marginTop: 32, alignItems: 'center' }} rows={4} columns={11} />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
+    </View>
+  );
+}
