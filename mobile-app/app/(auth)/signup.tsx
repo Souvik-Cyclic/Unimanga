@@ -107,3 +107,113 @@ export default function SignupScreen() {
         >
           <View style={{ paddingHorizontal: 24, paddingVertical: 40 }}>
             <View style={{ marginBottom: 32 }}>
+              <Eyebrow style={{ marginBottom: 10 }}>Start your library</Eyebrow>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+                <Text style={[type.display, { fontSize: 44, lineHeight: 46, textTransform: 'uppercase' }]}>
+                  UniManga
+                </Text>
+                <View
+                  style={{ width: 10, height: 10, backgroundColor: colors.accent, marginLeft: 5, marginBottom: 9 }}
+                />
+              </View>
+              <View style={{ height: 3, backgroundColor: colors.accent, width: 76, marginTop: 12 }} />
+            </View>
+
+            <Field
+              label="Username"
+              placeholder="How you appear in the app"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              autoComplete="username"
+              textContentType="username"
+              returnKeyType="next"
+            />
+
+            <Field
+              label="Email"
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              textContentType="emailAddress"
+              returnKeyType="next"
+            />
+
+            <Field
+              label="Password"
+              placeholder="At least 6 characters"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoComplete="password-new"
+              textContentType="newPassword"
+              returnKeyType="next"
+              right={
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={{ paddingHorizontal: 14, paddingVertical: 12 }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={19}
+                    color={colors.tone}
+                  />
+                </TouchableOpacity>
+              }
+            />
+
+            <Field
+              label="Confirm password"
+              placeholder="Type it again"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!showConfirmPassword}
+              autoCapitalize="none"
+              autoComplete="password-new"
+              textContentType="newPassword"
+              returnKeyType="done"
+              onSubmitEditing={handleSignup}
+              error={passwordsMismatch ? 'The two passwords do not match' : undefined}
+              right={
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={{ paddingHorizontal: 14, paddingVertical: 12 }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={19}
+                    color={colors.tone}
+                  />
+                </TouchableOpacity>
+              }
+            />
+
+            <PrimaryButton
+              label="Create account"
+              onPress={handleSignup}
+              loading={isLoading}
+              style={{ marginTop: 6 }}
+            />
+
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 28 }}>
+              <Data size={12}>ALREADY REGISTERED? </Data>
+              <TouchableOpacity onPress={() => router.push('/(auth)/login')} activeOpacity={0.7}>
+                <Data size={12} color={colors.accent}>
+                  SIGN IN
+                </Data>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
+    </View>
+  );
+}
