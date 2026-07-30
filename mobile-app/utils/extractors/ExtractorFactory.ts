@@ -51,3 +51,57 @@ export class ExtractorFactory {
 
   /**
    * Register a new adapter
+   * 
+   * @param adapter - The adapter instance to register
+   */
+  register(adapter: BaseWebsiteAdapter): void {
+    this.adapters.push(adapter);
+  }
+
+  /**
+   * Get the appropriate adapter for a given URL
+   * 
+   * @param url - The URL to find an adapter for
+   * @returns The matching adapter, or null if no adapter can handle the URL
+   */
+  getAdapterForUrl(url: string): BaseWebsiteAdapter | null {
+    for (const adapter of this.adapters) {
+      if (adapter.canHandle(url)) {
+        return adapter;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Check if any adapter can handle the given URL
+   * 
+   * @param url - The URL to check
+   * @returns true if an adapter exists for this URL
+   */
+  canHandle(url: string): boolean {
+    return this.getAdapterForUrl(url) !== null;
+  }
+
+  /**
+   * Get all registered adapters
+   * 
+   * @returns Array of all registered adapters
+   */
+  getAllAdapters(): BaseWebsiteAdapter[] {
+    return [...this.adapters];
+  }
+
+  /**
+   * Get adapter by name
+   * 
+   * @param name - The name of the adapter to find
+   * @returns The matching adapter, or null if not found
+   */
+  getAdapterByName(name: string): BaseWebsiteAdapter | null {
+    return this.adapters.find(adapter => adapter.getName() === name) || null;
+  }
+}
+
+// Singleton instance
+export const extractorFactory = new ExtractorFactory();
