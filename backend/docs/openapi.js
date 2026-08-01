@@ -596,3 +596,260 @@ export const openApiSpec = {
       put: {
         tags: ['Library'],
         summary: 'Set your rating and notes',
+        security: bearerAuth,
+        requestBody: jsonBody({
+          type: 'object',
+          properties: {
+            rating: { type: 'number', minimum: 0, maximum: 10 },
+            notes: { type: 'string' },
+          },
+        }),
+        responses: {
+          200: jsonResponse('Saved', {
+            type: 'object',
+            properties: {
+              message: { type: 'string' },
+              userManga: { $ref: '#/components/schemas/UserManga' },
+            },
+          }),
+          404: errorResponse('That series is not in your library'),
+        },
+      },
+    },
+
+    '/api/library/{id}': {
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Library entry id' },
+      ],
+      delete: {
+        tags: ['Library'],
+        summary: 'Remove a series from your library',
+        description: 'Clears your progress for it. The catalogue entry itself is kept.',
+        security: bearerAuth,
+        responses: {
+          200: jsonResponse('Removed', { $ref: '#/components/schemas/Error' }),
+          404: errorResponse('That series is not in your library'),
+        },
+      },
+    },
+
+    '/api/history': {
+      get: {
+        tags: ['History'],
+        summary: 'List what you have read',
+        description:
+          'Newest first. Entries are written whenever reading progress is saved, ' +
+          'and re-reading a chapter moves it back to the top rather than duplicating it.',
+        security: bearerAuth,
+        parameters: [
+          {
+            name: 'limit',
+            in: 'query',
+            schema: { type: 'integer', default: 50, maximum: 200 },
+            description: 'How many entries to return',
+          },
+          {
+            name: 'skip',
+            in: 'query',
+            schema: { type: 'integer', default: 0 },
+            description: 'How many entries to skip, for paging',
+          },
+        ],
+        responses: {
+          200: jsonResponse('Your reading trail', {
+            type: 'object',
+            properties: {
+              history: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/ReadHistoryEntry' },
+              },
+              count: { type: 'integer', description: 'Entries in this page' },
+              total: { type: 'integer', description: 'Entries you have in total' },
+            },
+          }),
+          401: errorResponse('Missing or invalid token'),
+        },
+      },
+      post: {
+        tags: ['History'],
+        summary: 'Record a chapter as read',
+        description:
+          'Saving progress records history on its own; use this when a chapter is ' +
+          'opened without a progress save.',
+        security: bearerAuth,
+        requestBody: jsonBody({
+          type: 'object',
+          required: ['mangaId', 'chapter'],
+          properties: {
+            mangaId: { type: 'string' },
+            userMangaId: { type: 'string' },
+            chapter: { type: 'string', example: '194' },
+            chapterUrl: { type: 'string', format: 'uri' },
+          },
+        }),
+        responses: {
+          201: jsonResponse('Reading recorded', {
+            type: 'object',
+            properties: {
+              message: { type: 'string' },
+              entry: { $ref: '#/components/schemas/ReadHistoryEntry' },
+            },
+          }),
+          400: errorResponse('mangaId and chapter are required, or the chapter was a placeholder'),
+          401: errorResponse('Missing or invalid token'),
+        },
+      },
+      delete: {
+        tags: ['History'],
+        summary: 'Clear your whole reading trail',
+        description: 'Your library and progress are untouched; only the trail is erased.',
+        security: bearerAuth,
+        responses: {
+          200: jsonResponse('History cleared', {
+            type: 'object',
+            properties: {
+              message: { type: 'string' },
+              removed: { type: 'integer' },
+            },
+          }),
+          401: errorResponse('Missing or invalid token'),
+        },
+      },
+    },
+
+    '/api/history/{id}': {
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'History entry id' },
+      ],
+      delete: {
+        tags: ['History'],
+        summary: 'Remove one entry from your trail',
+        security: bearerAuth,
+        responses: {
+          200: jsonResponse('Entry removed', { $ref: '#/components/schemas/Error' }),
+          404: errorResponse('No such entry'),
+        },
+      },
+    },
+
+    '/api/manga': {
+      get: {
+        tags: ['Manga'],
+        summary: 'Browse the catalogue',
+        security: [],
+        responses: {
+          200: jsonResponse('Catalogue entries', {
+            type: 'object',
+            properties: {
+              manga: { type: 'array', items: { $ref: '#/components/schemas/Manga' } },
+              count: { type: 'integer' },
+            },
+          }),
+        },
+      },
+    },
+
+    '/api/manga/{id}': {
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Manga id' },
+      ],
+      get: {
+        tags: ['Manga'],
+        summary: 'Get one series',
+        security: [],
+        responses: {
+          200: jsonResponse('The series', {
+            type: 'object',
+            properties: { manga: { $ref: '#/components/schemas/Manga' } },
+          }),
+          404: errorResponse('No such manga'),
+        },
+      },
+    },
+
+    '/api/websites': {
+      get: {
+        tags: ['Websites'],
+        summary: 'List the sources readers can browse',
+        security: [],
+        responses: {
+          200: jsonResponse('Sources', {
+            type: 'object',
+            properties: {
+              websites: { type: 'array', items: { $ref: '#/components/schemas/Website' } },
+            },
+          }),
+        },
+      },
+      post: {
+        tags: ['Websites'],
+        summary: 'Add a source',
+        security: bearerAuth,
+        requestBody: jsonBody({
+          type: 'object',
+          required: ['name', 'url'],
+          properties: {
+            name: { type: 'string', example: 'AsuraScans' },
+            url: { type: 'string', format: 'uri' },
+            language: { type: 'string', example: 'EN' },
+            color: { type: 'string', example: '#8B5CF6' },
+            isActive: { type: 'boolean' },
+          },
+        }),
+        responses: {
+          201: jsonResponse('Source added', {
+            type: 'object',
+            properties: {
+              message: { type: 'string' },
+              website: { $ref: '#/components/schemas/Website' },
+            },
+          }),
+          400: errorResponse('A source with that name already exists'),
+          401: errorResponse('Missing or invalid token'),
+        },
+      },
+    },
+
+    '/api/websites/{id}': {
+      parameters: [
+        { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Website id' },
+      ],
+      put: {
+        tags: ['Websites'],
+        summary: 'Update a source',
+        security: bearerAuth,
+        requestBody: jsonBody({
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            url: { type: 'string', format: 'uri' },
+            language: { type: 'string' },
+            color: { type: 'string' },
+            isActive: { type: 'boolean' },
+          },
+        }),
+        responses: {
+          200: jsonResponse('Source updated', {
+            type: 'object',
+            properties: {
+              message: { type: 'string' },
+              website: { $ref: '#/components/schemas/Website' },
+            },
+          }),
+          404: errorResponse('No such source'),
+        },
+      },
+      delete: {
+        tags: ['Websites'],
+        summary: 'Delete a source',
+        security: bearerAuth,
+        responses: {
+          200: jsonResponse('Source deleted', { $ref: '#/components/schemas/Error' }),
+          404: errorResponse('No such source'),
+        },
+      },
+    },
+  },
+};
+
+export default openApiSpec;
