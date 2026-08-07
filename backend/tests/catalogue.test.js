@@ -62,3 +62,46 @@ describe('Websites', () => {
     const { token } = await createUser();
     const website = await createWebsite();
 
+    const response = await api().delete(`/api/websites/${website._id}`).set(auth(token));
+    assert.strictEqual(response.status, 200);
+
+    const remaining = await api().get('/api/websites');
+    assert.strictEqual(remaining.body.websites.length, 0);
+  });
+});
+
+describe('Manga catalogue', () => {
+  before(startTestDb);
+  after(stopTestDb);
+  beforeEach(async () => {
+    await clearTestDb();
+    await createWebsite();
+  });
+
+  it('is readable without a token', async () => {
+    const { token } = await createUser();
+    await addSeries(token);
+
+    const response = await api().get('/api/manga');
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.manga.length, 1);
+    assert.strictEqual(response.body.manga[0].title, 'Test Series');
+  });
+
+  it('returns one series by id', async () => {
+    const { token } = await createUser();
+    const added = await addSeries(token);
+
+    const response = await api().get(`/api/manga/${added.body.userManga.manga._id}`);
+
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.body.manga.title, 'Test Series');
+  });
+
+  it('reports an unknown id as not found', async () => {
+    const response = await api().get('/api/manga/6a8997e58e0f4e63d84e8bb6');
+
+    assert.strictEqual(response.status, 404);
+  });
+});
