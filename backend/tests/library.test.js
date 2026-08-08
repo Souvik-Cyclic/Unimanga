@@ -136,3 +136,95 @@ describe('Library', () => {
 
       assert.strictEqual(response.body.userManga.status, 'completed');
       assert.strictEqual(response.body.userManga.progress, 100);
+      assert.ok(response.body.userManga.completedAt);
+    });
+
+    it('moves a series to another shelf', async () => {
+      const { token } = await createUser();
+      const added = await addSeries(token);
+      const shelf = await api()
+        .post('/api/categories')
+        .set(auth(token))
+        .send({ name: 'Finished later' });
+
+      const response = await api()
+        .put(`/api/library/${added.body.userManga._id}/category`)
+        .set(auth(token))
+        .send({ categoryId: shelf.body.category._id });
+
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.userManga.category.name, 'Finished later');
+    });
+
+    it('flips the favourite flag', async () => {
+      const { token } = await createUser();
+      const added = await addSeries(token);
+
+      const on = await api()
+        .put(`/api/library/${added.body.userManga._id}/favorite`)
+        .set(auth(token));
+      assert.strictEqual(on.body.userManga.favorite, true);
+
+      const off = await api()
+        .put(`/api/library/${added.body.userManga._id}/favorite`)
+        .set(auth(token));
+      assert.strictEqual(off.body.userManga.favorite, false);
+    });
+
+    it('saves a personal rating and notes', async () => {
+      const { token } = await createUser();
+      const added = await addSeries(token);
+
+      const response = await api()
+        .put(`/api/library/${added.body.userManga._id}/details`)
+        .set(auth(token))
+        .send({ rating: 9, notes: 'Art carries the last arc.' });
+
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.body.userManga.rating, 9);
+      assert.strictEqual(response.body.userManga.notes, 'Art carries the last arc.');
+    });
+
+    it('will not update an entry that belongs to someone else', async () => {
+      const owner = await createUser({ username: 'owner', email: 'owner@example.com' });
+      const stranger = await createUser({ username: 'stranger', email: 'stranger@example.com' });
+      const added = await addSeries(owner.token);
+
+      const response = await api()
+        .put(`/api/library/${added.body.userManga._id}/progress`)
+        .set(auth(stranger.token))
+        .send({ currentChapter: '99' });
+
+      assert.strictEqual(response.status, 404);
+    });
+  });
+
+  describe('removing an entry', () => {
+    it('takes the series out of the library', async () => {
+      const { token } = await createUser();
+      const added = await addSeries(token);
+
+      const response = await api()
+        .delete(`/api/library/${added.body.userManga._id}`)
+        .set(auth(token));
+      assert.strictEqual(response.status, 200);
+
+      const library = await api().get('/api/library').set(auth(token));
+      assert.strictEqual(library.body.count, 0);
+    });
+
+    it('leaves the catalogue entry in place for other readers', async () => {
+      const first = await createUser({ username: 'first', email: 'first@example.com' });
+      const second = await createUser({ username: 'second', email: 'second@example.com' });
+      const added = await addSeries(first.token);
+
+      await api().delete(`/api/library/${added.body.userManga._id}`).set(auth(first.token));
+
+      const catalogue = await api().get('/api/manga');
+      assert.strictEqual(catalogue.body.manga.length, 1);
+
+      const readdedBySecond = await addSeries(second.token);
+      assert.strictEqual(readdedBySecond.status, 201);
+    });
+  });
+});
