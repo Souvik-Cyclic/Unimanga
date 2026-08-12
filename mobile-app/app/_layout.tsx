@@ -14,3 +14,20 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <ThemedStack />
+    </ThemeProvider>
+  );
+}
+
+/** Separate component so it can read the theme the provider above supplies. */
+function ThemedStack() {
+  const { colors } = useTheme();
+
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.gutter },
+      }}
+    />
+  );
+}
