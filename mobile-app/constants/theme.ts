@@ -81,3 +81,87 @@ const light: Palette = {
   success: '#1B7F3B',
 };
 
+export const palettes: Record<ColorScheme, Palette> = { dark, light };
+
+/**
+ * Android ships a genuine condensed grotesque and a black weight; iOS gets the
+ * system face pushed to its heaviest weight with tightened tracking so both
+ * platforms land on the same voice.
+ */
+export const fonts = {
+  display: Platform.select({ android: 'sans-serif-condensed', default: undefined }),
+  displayHeavy: Platform.select({ android: 'sans-serif-condensed', default: undefined }),
+  body: Platform.select({ android: 'sans-serif', default: undefined }),
+  mono: Platform.select({ android: 'monospace', ios: 'Menlo', default: 'monospace' }),
+};
+
+/** Panels are rectangles. The only rounded thing in the app is the pill chip. */
+export const radius = {
+  none: 0,
+  chip: 999,
+} as const;
+
+export interface TypeScale {
+  display: TextStyle;
+  title: TextStyle;
+  eyebrow: TextStyle;
+  data: TextStyle;
+  body: TextStyle;
+}
+
+/** The type scale carries colour, so it is built per palette. */
+export function buildType(colors: Palette): TypeScale {
+  return {
+    /** Wordmark and screen titles. */
+    display: {
+      fontFamily: fonts.display,
+      fontWeight: '900',
+      letterSpacing: -0.5,
+      color: colors.paper,
+    },
+    /** Panel and card titles. */
+    title: {
+      fontFamily: fonts.display,
+      fontWeight: '800',
+      letterSpacing: -0.2,
+      color: colors.paper,
+    },
+    /** Small uppercase section markers. */
+    eyebrow: {
+      fontFamily: fonts.mono,
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 1.6,
+      textTransform: 'uppercase',
+      color: colors.tone,
+    },
+    /** Chapter numbers, counts, percentages — anything the reader compares. */
+    data: {
+      fontFamily: fonts.mono,
+      fontSize: 12,
+      letterSpacing: 0.4,
+      color: colors.tone,
+    },
+    body: {
+      fontFamily: fonts.body,
+      fontSize: 14,
+      color: colors.paper,
+    },
+  };
+}
+
+export interface StatusMeta {
+  label: string;
+  color: string;
+}
+
+/** Reading-status vocabulary shared by the library list and the detail sheets. */
+export function buildStatusMeta(colors: Palette): Record<string, StatusMeta> {
+  return {
+    reading: { label: 'Reading', color: colors.accent },
+    completed: { label: 'Finished', color: colors.success },
+    'on-hold': { label: 'On hold', color: colors.gold },
+    dropped: { label: 'Dropped', color: colors.toneDim },
+    'plan-to-read': { label: 'Queued', color: colors.tone },
+  };
+}
