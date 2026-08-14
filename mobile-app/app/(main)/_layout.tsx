@@ -7,3 +7,9 @@ export default function MainLayout() {
   return (
     <Stack
       screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.gutter },
+      }}
+    />
+  );
+}
