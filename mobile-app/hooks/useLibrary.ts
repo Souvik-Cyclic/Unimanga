@@ -129,3 +129,135 @@ export function useLibrary(onError?: (message: string) => void) {
     setViewMode,
     loadLibrary,
     getCategoryCount,
+  };
+}
+
+/**
+ * Hook for managing manga actions (delete, change category, etc.)
+ */
+export function useMangaActions(
+  onSuccess?: (message: string) => void,
+  onError?: (message: string) => void,
+  onConfirm?: (title: string, message: string, onYes: () => void) => void
+) {
+  const [actionInProgress, setActionInProgress] = useState(false);
+
+  const deleteManga = async (mangaId: string, mangaTitle: string) => {
+    return new Promise<boolean>((resolve) => {
+      const performDelete = async () => {
+        try {
+          setActionInProgress(true);
+          await apiService.deleteMangaFromLibrary(mangaId);
+          onSuccess?.('Manga removed from library');
+          resolve(true);
+        } catch (error) {
+          console.log('[useMangaActions] Failed to delete manga:', error);
+          onError?.('Failed to remove manga from library');
+          resolve(false);
+        } finally {
+          setActionInProgress(false);
+        }
+      };
+
+      if (onConfirm) {
+        onConfirm(
+          'Delete Manga',
+          `Are you sure you want to remove "${mangaTitle}" from your library?`,
+          performDelete
+        );
+      } else {
+        performDelete();
+      }
+    });
+  };
+
+  const changeMangaCategory = async (
+    mangaId: string,
+    categoryId: string,
+    mangaTitle: string
+  ) => {
+    try {
+      setActionInProgress(true);
+      await apiService.updateMangaCategory(mangaId, categoryId);
+      onSuccess?.(`Category updated for "${mangaTitle}"`);
+      return true;
+    } catch (error) {
+      console.log('[useMangaActions] Failed to change category:', error);
+      onError?.('Failed to update category');
+      return false;
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
+  const toggleFavorite = async (
+    mangaId: string,
+    mangaTitle: string,
+    currentlyFavorite: boolean
+  ) => {
+    try {
+      setActionInProgress(true);
+      const updated = await apiService.toggleFavorite(mangaId);
+      onSuccess?.(`${currentlyFavorite ? 'Removed from' : 'Added to'} favorites`);
+      return updated;
+    } catch (error) {
+      console.log('[useMangaActions] Failed to toggle favorite:', error);
+      onError?.('Failed to update favorite');
+      return null;
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
+  return {
+    actionInProgress,
+    deleteManga,
+    changeMangaCategory,
+    toggleFavorite,
+  };
+}
+
+/**
+ * Hook for managing manga card actions menu
+ */
+export function useMangaMenu() {
+  const [selectedManga, setSelectedManga] = useState<UserManga | null>(null);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+
+  const openOptionsMenu = (manga: UserManga) => {
+    setSelectedManga(manga);
+    setShowOptionsMenu(true);
+  };
+
+  const closeOptionsMenu = () => {
+    setShowOptionsMenu(false);
+    setSelectedManga(null);
+  };
+
+  const openCategoryModal = () => {
+    setShowOptionsMenu(false);
+    setShowCategoryModal(true);
+  };
+
+  const closeCategoryModal = () => {
+    setShowCategoryModal(false);
+  };
+
+  const closeAll = () => {
+    setShowOptionsMenu(false);
+    setShowCategoryModal(false);
+    setSelectedManga(null);
+  };
+
+  return {
+    selectedManga,
+    showOptionsMenu,
+    showCategoryModal,
+    openOptionsMenu,
+    closeOptionsMenu,
+    openCategoryModal,
+    closeCategoryModal,
+    closeAll,
+  };
+}

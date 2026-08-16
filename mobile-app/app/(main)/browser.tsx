@@ -153,3 +153,367 @@ export default function BrowserScreen() {
   const headerHeight = useRef(0);
   const headerTranslateY = useRef(new Animated.Value(0)).current;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [headerVisible, setHeaderVisibleState] = useState(true);
+
+  const setHeaderVisible = (show: boolean) => {
+    setHeaderVisibleState(show);
+    Animated.timing(headerTranslateY, {
+      toValue: show ? 0 : -(headerHeight.current || 120),
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const armHideTimer = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setHeaderVisible(false), 2000);
+  };
+
+  const handleRevealTap = () => {
+    setHeaderVisible(true);
+    armHideTimer();
+  };
+
+  // Re-arm whenever a page finishes loading (navigation.loading true -> false)
+  // - a fresh chapter/page load should always start from "visible, then hide
+  // in 2s" rather than staying hidden from a previous page.
+  useEffect(() => {
+    if (!isReadingPage) {
+      // Not a reading page - the chrome just stays visible, no timer.
+      if (hideTimer.current) {
+        clearTimeout(hideTimer.current);
+        hideTimer.current = null;
+      }
+      setHeaderVisible(true);
+      return;
+    }
+    if (!navigation.loading) {
+      setHeaderVisible(true);
+      armHideTimer();
+    }
+    return () => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation.loading, isReadingPage]);
+
+  // Hide the Android system nav bar, but only while actually on a reading
+  // page - it eats into the same vertical space this whole redesign is
+  // trying to reclaim there, but hiding it while the reader is browsing the
+  // site itself (detail page, chapter list, ...) would just be disorienting
+  // for no benefit. 'overlay-swipe' still lets an edge-swipe reveal it
+  // temporarily if needed. iOS has no JS-controllable equivalent.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    if (isReadingPage) {
+      NavigationBar.setVisibilityAsync('hidden');
+      NavigationBar.setBehaviorAsync('overlay-swipe');
+    } else {
+      NavigationBar.setVisibilityAsync('visible');
+    }
+  }, [isReadingPage]);
+
+  // Safety net: whatever state the nav bar was left in, always restore it
+  // to visible when leaving this screen entirely, regardless of whether the
+  // reader happened to be mid-chapter (isReadingPage true) at that moment.
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        if (Platform.OS === 'android') NavigationBar.setVisibilityAsync('visible');
+      };
+    }, [])
+  );
+
+  // Some anti-bot challenges (Cloudflare included) call window.open() as
+  // part of their verification flow, or to test whether popups are being
+  // blocked (a common headless/automation signal). With
+  // setSupportMultipleWindows disabled, that call silently fails, which can
+  // stall the challenge. We allow it, and just load the target URL in the
+  // same WebView instead of spawning a real second window.
+  const handleOpenWindow = (event: { nativeEvent: { targetUrl?: string } }) => {
+    const targetUrl = event.nativeEvent?.targetUrl;
+    // Ad networks are the other big source of window.open() calls (popunders,
+    // "new tab" interstitials) - don't let those hijack the reader. Anything
+    // else (e.g. Cloudflare's challenge probe) still gets rerouted in-place.
+    if (targetUrl && !isAdUrl(targetUrl)) {
+      webViewRef.current?.injectJavaScript(
+        `window.location.href = ${JSON.stringify(targetUrl)}; true;`
+      );
+    }
+  };
+
+  // Refuse top-level/frame navigation to known ad/tracker domains outright -
+  // this catches redirect-based ad interstitials that don't go through
+  // window.open() at all.
+  const handleShouldStartLoad = (request: { url: string }) => {
+    return !isAdUrl(request.url);
+  };
+
+  // Handle "+ Library" button click
+  const handleAddToLibrary = async () => {
+    if (!navigation.currentUrl) return;
+
+    // Check this FIRST, before anything else: if this screen was opened for
+    // an existing library entry (e.g. "Continue Reading" from the library
+    // list, which opens straight into a chapter URL - see home.tsx's
+    // handleOpenManga, which passes both mangaId and userMangaId in that
+    // case), the manga is already in the library. There's nothing to add,
+    // regardless of whether we're on a chapter page or the detail page, and
+    // regardless of whether cached metadata happens to be present. Showing
+    // the add-to-library overlay here would offer to create a duplicate
+    // entry; showing the "please open the detail page" warning would be
+    // actively wrong, since the user did nothing wrong - the manga simply
+    // isn't addable because it's already there.
+    if (userMangaId) {
+      showToast('This manga is already in your library', 'info');
+      return;
+    }
+
+    // Check this next, before the detail-page gate below: if metadata was
+    // already captured (e.g. while browsing the series page before tapping
+    // into a chapter to read), it's valid regardless of what kind of page
+    // we're currently sitting on - this is the common "read a chapter, then
+    // add to library" flow and must not be blocked by the chapter-page check.
+    if (metadata.extractedMetadata?.title) {
+      setShowOverlay(true);
+      return;
+    }
+
+    // No cached metadata - extraction only works on an actual detail page
+    // (MetadataService intentionally refuses to extract on chapter pages).
+    if (!metadataService.isMangaDetailPage(navigation.currentUrl)) {
+      showToast('Please open the manga\'s detail page to add it to your library', 'warning');
+      return;
+    }
+
+    // Extract metadata manually
+    console.log('[Browser] Manually extracting metadata...');
+    const success = await metadata.extractMetadata(navigation.currentUrl, true);
+    
+    if (success) {
+      // Wait a bit for the message, then show overlay or alert
+      setTimeout(() => {
+        if (metadata.extractedMetadata?.title) {
+          setShowOverlay(true);
+        } else {
+          showToast('Could not extract manga information. Please try again.', 'error');
+        }
+      }, 1000);
+    }
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.gutter }}>
+      <StatusBar hidden={isReadingPage} animated backgroundColor={colors.gutter} />
+
+      {/* WebView fills the whole screen - the chrome below floats OVER it
+          rather than pushing it down, so hiding the chrome while reading
+          doesn't reflow the page underneath. */}
+      <WebView
+        ref={webViewRef}
+        source={{
+          uri: websiteUrl,
+          headers: {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+          }
+        }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        // navState.loading (handled in handleNavigationStateChange) is the
+        // source of truth for the spinner - see useWebViewNavigation. Only
+        // onLoadStart is used here, purely for snappier UI feedback the
+        // instant a real navigation begins; it's never relied on to clear
+        // the spinner, so it can't cause the stuck-spinner desync that
+        // onLoadStart/onLoadEnd pairing was prone to on SPA-style pages.
+        onLoadStart={() => navigation.setLoading(true)}
+        onNavigationStateChange={handleNavigationStateChange}
+        onShouldStartLoadWithRequest={handleShouldStartLoad}
+        onMessage={metadata.handleWebViewMessage}
+        injectedJavaScriptBeforeContentLoaded={AD_BLOCK_INJECTED_JS}
+        javaScriptEnabled
+        domStorageEnabled
+        userAgent={MOBILE_USER_AGENT}
+        thirdPartyCookiesEnabled
+        sharedCookiesEnabled
+        cacheEnabled
+        incognito={false}
+        setSupportMultipleWindows
+        onOpenWindow={handleOpenWindow}
+        mixedContentMode="compatibility"
+        allowsInlineMediaPlayback
+      />
+
+      {/* Loading Indicator */}
+      {navigation.loading && (
+        <View style={{ position: 'absolute', top: '50%', left: '50%', marginLeft: -20, marginTop: -20, zIndex: 5 }}>
+          <ActivityIndicator size="large" color={websiteColor} />
+        </View>
+      )}
+
+      {/* Tap-near-top reveal catcher: invisible, only present while the
+          chrome is hidden (so it never steals a touch meant for the
+          header's own buttons once they're back on screen). */}
+      {!headerVisible && (
+        <TouchableOpacity
+          onPress={handleRevealTap}
+          activeOpacity={1}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 80, zIndex: 8 }}
+        />
+      )}
+
+      {/* Reader chrome: one compact row (nav controls, an address "pill",
+          and the library action) instead of the two stacked rows this used
+          to be - plus the auto-hide behavior above. The source's own colour
+          still runs as a thin rule under it. */}
+      <Animated.View
+        onLayout={(e) => {
+          headerHeight.current = e.nativeEvent.layout.height;
+        }}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 10,
+          backgroundColor: colors.panel,
+          transform: [{ translateY: headerTranslateY }],
+        }}
+      >
+        <View
+          style={{
+            // Slim while actually reading (immersive), but tall enough to
+            // clear the status bar the rest of the time, since that's
+            // visible again outside a reading page.
+            paddingTop: isReadingPage ? 12 : 44,
+            paddingBottom: 10,
+            paddingHorizontal: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              activeOpacity={0.85}
+              style={{
+                width: 36,
+                height: 36,
+                backgroundColor: colors.panelRaised,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 7,
+              }}
+            >
+              <Ionicons name="arrow-back" size={18} color={colors.paper} />
+            </TouchableOpacity>
+
+            {[
+              { icon: 'chevron-back' as const, onPress: navigation.handleBack, enabled: navigation.canGoBack },
+              { icon: 'chevron-forward' as const, onPress: navigation.handleForward, enabled: navigation.canGoForward },
+            ].map((control) => (
+              <TouchableOpacity
+                key={control.icon}
+                onPress={control.onPress}
+                disabled={!control.enabled}
+                activeOpacity={0.85}
+                style={{
+                  width: 36,
+                  height: 36,
+                  backgroundColor: colors.panelRaised,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 7,
+                  opacity: control.enabled ? 1 : 0.35,
+                }}
+              >
+                <Ionicons name={control.icon} size={18} color={colors.paper} />
+              </TouchableOpacity>
+            ))}
+
+            {/* Address "pill": just the site name, tap to refresh - standing
+                in for the two separate stacked lines plus a whole extra row
+                of controls this used to take. */}
+            <TouchableOpacity
+              onPress={navigation.handleRefresh}
+              activeOpacity={0.85}
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                height: 36,
+                backgroundColor: colors.panelRaised,
+                paddingHorizontal: 12,
+                marginRight: 7,
+              }}
+            >
+              <Ionicons name="refresh" size={16} color={colors.toneDim} style={{ marginRight: 6 }} />
+              <Text style={[type.title, { fontSize: 13, flex: 1 }]} numberOfLines={1}>
+                {websiteName}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => {
+                bypassBackGuardRef.current = true;
+                router.replace('/(main)/home');
+              }}
+              activeOpacity={0.85}
+              style={{
+                width: 36,
+                height: 36,
+                backgroundColor: colors.panelRaised,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 7,
+              }}
+              accessibilityLabel="Back to Library"
+            >
+              <Ionicons name="home-outline" size={18} color={colors.paper} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleAddToLibrary}
+              activeOpacity={0.85}
+              style={{
+                width: 36,
+                height: 36,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: userMangaId ? colors.panelRaised : colors.accent,
+              }}
+              accessibilityLabel={userMangaId ? 'Already in library' : 'Add to library'}
+            >
+              <Ionicons
+                name={userMangaId ? 'checkmark' : 'add'}
+                size={19}
+                color={userMangaId ? colors.tone : '#FFFFFF'}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={{ height: 3, backgroundColor: websiteColor }} />
+      </Animated.View>
+
+      {/* Reader Overlay */}
+      <ReaderOverlay
+        visible={showOverlay}
+        metadata={metadata.extractedMetadata}
+        currentUrl={navigation.currentUrl}
+        onClose={() => setShowOverlay(false)}
+        onSuccess={(newUserMangaId) => {
+          setShowOverlay(false);
+          metadata.clearMetadata();
+          setUserMangaId(newUserMangaId);
+        }}
+      />
+
+      {/* Toast Notifications */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
+      />
+    </View>
+  );
+}
