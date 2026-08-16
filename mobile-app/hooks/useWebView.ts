@@ -179,3 +179,226 @@ export function useMetadataExtraction(
   // fast-loading pages/quick navigators, with later retries as a backstop
   // for slow-loading ones (ads, lazy content, interstitial overlays).
   useEffect(() => {
+    if (!currentUrl || showOverlay) return;
+    if (!metadataService.isMangaDetailPage(currentUrl)) return;
+
+    extractedForUrlRef.current = null;
+    const delaysMs = [800, 2200, 4000];
+    const timers = delaysMs.map((delay) =>
+      setTimeout(() => {
+        if (extractedForUrlRef.current === currentUrl) return; // already got it
+        extractMetadata(currentUrl, false);
+      }, delay)
+    );
+
+    return () => timers.forEach(clearTimeout);
+  }, [currentUrl, showOverlay]);
+
+  // For chapter pages on adapters whose URLs don't carry a usable chapter
+  // number (e.g. WeebCentral's ULID chapter IDs), inject a DOM-reading script
+  // to recover the chapter number for progress tracking. This is separate
+  // from the metadata extraction above - it never triggers the "Add to
+  // Library" overlay and doesn't touch MetadataService's chapter-page skip.
+  useEffect(() => {
+    if (!currentUrl || showOverlay) return;
+
+    const adapter = metadataService.getExtractorForUrl(currentUrl);
+    if (!adapter || !adapter.isChapterPage(currentUrl)) return;
+
+    const baseScript = adapter.getChapterNumberScript?.();
+    if (!baseScript) return;
+
+    const timer = setTimeout(() => {
+      const script = buildChapterNumberInjectionScript(baseScript);
+      chapterInjectStartRef.current = Date.now();
+      webViewRef.current?.injectJavaScript(script);
+    }, 2000); // let the reader page's dynamic content (dropdown/title) settle
+
+    return () => clearTimeout(timer);
+  }, [currentUrl, showOverlay]);
+
+  const extractMetadata = async (url: string, isManual: boolean = false) => {
+    const adapter = metadataService.getExtractorForUrl(url);
+
+    if (!adapter) {
+      if (isManual) {
+        onUnsupportedWebsite?.();
+      }
+      return false;
+    }
+
+    const script = metadataService.getInjectionScript(url);
+    if (!script) {
+      if (isManual) {
+        onExtractionFailed?.();
+      }
+      return false;
+    }
+
+    try {
+      metadataInjectStartRef.current = Date.now();
+      await webViewRef.current?.injectJavaScript(script);
+      return true;
+    } catch (error) {
+      console.log('[useMetadataExtraction] Failed to inject script:', error);
+      if (isManual) {
+        onExtractionFailed?.();
+      }
+      return false;
+    }
+  };
+
+  const handleWebViewMessage = (event: any) => {
+    try {
+      const messageData = event.nativeEvent.data;
+      console.log('[useMetadataExtraction] Received message from WebView');
+
+      // Chapter-number payloads (from getChapterNumberScript injection) are
+      // tagged so they can be routed to progress tracking instead of being
+      // parsed as manga metadata.
+      try {
+        const parsed = JSON.parse(messageData);
+        if (parsed && parsed[CHAPTER_NUMBER_PAYLOAD_FLAG]) {
+          const elapsedMs = chapterInjectStartRef.current ? Date.now() - chapterInjectStartRef.current : null;
+          chapterInjectStartRef.current = null;
+          if (parsed.chapterNumber) {
+            console.log(`[useMetadataExtraction] Chapter number extracted from DOM: ${parsed.chapterNumber} (${elapsedMs}ms)`);
+            chapterNumberListener?.(parsed.sourceUrl || currentUrl, parsed.chapterNumber);
+          } else {
+            console.log(`[useMetadataExtraction] Chapter number DOM extraction found nothing (${elapsedMs}ms)`, parsed.error || '');
+          }
+          return;
+        }
+      } catch {
+        // Not JSON, or not a chapter-number payload - fall through to normal metadata parsing.
+      }
+
+      const elapsedMs = metadataInjectStartRef.current ? Date.now() - metadataInjectStartRef.current : null;
+      metadataInjectStartRef.current = null;
+
+      const parseStart = Date.now();
+      const metadata = metadataService.parseMetadata(messageData);
+      const parseMs = Date.now() - parseStart;
+
+      if (metadata) {
+        extractedForUrlRef.current = currentUrl;
+        setExtractedMetadata(metadata);
+        console.log(`[useMetadataExtraction] Successfully extracted: ${metadata.title} (round-trip ${elapsedMs}ms, parse ${parseMs}ms)`);
+      } else {
+        console.log(`[useMetadataExtraction] Extraction returned no metadata (round-trip ${elapsedMs}ms, parse ${parseMs}ms)`);
+      }
+    } catch (error) {
+      console.log('[useMetadataExtraction] Error handling message:', error);
+    }
+  };
+
+  const clearMetadata = () => {
+    setExtractedMetadata(null);
+  };
+
+  return {
+    extractedMetadata,
+    extractMetadata,
+    handleWebViewMessage,
+    clearMetadata,
+  };
+}
+
+/**
+ * Hook for tracking reading progress
+ */
+export function useProgressTracking(userMangaId?: string) {
+  const progressUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Tracks the last chapter/url we successfully sent, so the async
+  // DOM-extraction path (see chapterNumberListener) doesn't fire a duplicate
+  // update for a chapter we already recorded via the URL-regex fast path.
+  const lastReportedRef = useRef<{ url: string; chapterNumber: string } | null>(null);
+
+  const sendProgressUpdate = async (url: string, chapterNumber: string) => {
+    if (!userMangaId) return;
+    if (
+      lastReportedRef.current &&
+      lastReportedRef.current.url === url &&
+      lastReportedRef.current.chapterNumber === chapterNumber
+    ) {
+      return;
+    }
+
+    try {
+      console.log('[useProgressTracking] Updating - Chapter:', chapterNumber);
+
+      await apiService.updateMangaProgress(userMangaId, {
+        lastReadUrl: url,
+        currentChapter: chapterNumber,
+        status: 'reading',
+      });
+
+      lastReportedRef.current = { url, chapterNumber };
+      console.log('[useProgressTracking] Progress updated successfully');
+    } catch (error) {
+      console.log('[useProgressTracking] Failed to update progress:', error);
+    }
+  };
+
+  // Receive DOM-extracted chapter numbers for adapters whose chapter URLs
+  // don't carry a usable chapter number (e.g. WeebCentral). See
+  // useMetadataExtraction's chapter-number injection effect, which is what
+  // populates this via chapterNumberListener.
+  useEffect(() => {
+    chapterNumberListener = (url, chapterNumber) => {
+      sendProgressUpdate(url, chapterNumber);
+    };
+
+    return () => {
+      if (chapterNumberListener) {
+        chapterNumberListener = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userMangaId]);
+
+  useEffect(() => {
+    return () => {
+      if (progressUpdateTimeoutRef.current) {
+        clearTimeout(progressUpdateTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const updateProgress = (url: string) => {
+    if (!userMangaId) return;
+
+    // Clear any pending update
+    if (progressUpdateTimeoutRef.current) {
+      clearTimeout(progressUpdateTimeoutRef.current);
+    }
+
+    // Debounce progress updates (wait 2 seconds after navigation stops)
+    progressUpdateTimeoutRef.current = setTimeout(async () => {
+      // Only ever try to read a chapter number out of a URL the adapter
+      // itself confirms is a chapter page. Without this gate, a
+      // client-rendered site (MangaFire) can briefly navigate through an
+      // intermediate URL built from its own internal chapter ID before JS
+      // rewrites the address bar to the real page URL - that transient URL
+      // slipped past the debounce and got fed to extractChapterNumber(),
+      // which (having no reason to expect anything but a real chapter page)
+      // matched the ID itself as if it were a chapter number (e.g. a
+      // 7-digit ID logged as "Chapter 9368024"). isChapterPage() is the
+      // same check MetadataService already applies before extraction; this
+      // path just wasn't gated on it before.
+      const adapter = metadataService.getExtractorForUrl(url);
+      if (!adapter?.isChapterPage(url)) return;
+
+      // Fast path: chapter number is embedded in the URL (AsuraScans, MangaFire, ...).
+      // If it's not there, we leave it to the async DOM-extraction path
+      // (chapterNumberListener above) for adapters that support it - see
+      // WeebCentralAdapter.getChapterNumberScript().
+      const chapterNumber = extractChapterNumber(url);
+      if (chapterNumber) {
+        await sendProgressUpdate(url, chapterNumber);
+      }
+    }, 2000);
+  };
+
+  return { updateProgress };
+}
