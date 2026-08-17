@@ -156,3 +156,161 @@ export default function ReaderOverlay({
           left: 0,
           right: 0,
           backgroundColor: colors.panel,
+          borderTopWidth: 3,
+          borderTopColor: colors.accent,
+          maxHeight: '80%',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 12,
+          elevation: 12,
+        }}
+      >
+        <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+          <View style={{ width: 44, height: 3, backgroundColor: colors.edge }} />
+        </View>
+
+        <ScrollView style={{ flex: 1 }}>
+          <TouchableOpacity
+            onPress={onClose}
+            activeOpacity={0.85}
+            style={{
+              position: 'absolute',
+              top: 4,
+              right: 16,
+              zIndex: 10,
+              width: 30,
+              height: 30,
+              backgroundColor: colors.panelRaised,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="close" size={16} color={colors.paper} />
+          </TouchableOpacity>
+
+          <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+            {/* Cover and identity */}
+            <View style={{ flexDirection: 'row', marginBottom: 20, marginTop: 8 }}>
+              <View style={{ marginRight: 14 }}>
+                <Cover uri={metadata.coverImage} title={title} width={92} height={132} />
+              </View>
+
+              <View style={{ flex: 1, paddingRight: 34 }}>
+                <Text style={[type.display, { fontSize: 22 }]} numberOfLines={3}>
+                  {title}
+                </Text>
+
+                {!!metadata.author && (
+                  <Data size={11} style={{ marginTop: 6 }}>
+                    {metadata.author.toUpperCase()}
+                  </Data>
+                )}
+
+                {!!metadata.mangaStatus && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                    <View
+                      style={{
+                        width: 6,
+                        height: 6,
+                        marginRight: 6,
+                        backgroundColor: SERIES_STATUS[metadata.mangaStatus] ?? colors.accent,
+                      }}
+                    />
+                    <Data size={11}>{metadata.mangaStatus.toUpperCase()}</Data>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            {/* Figures the reader compares before committing */}
+            {(!!metadata.totalChapters || !!metadata.rating) && (
+              <View style={{ flexDirection: 'row', marginBottom: 20 }}>
+                {!!metadata.totalChapters && metadata.totalChapters > 0 && (
+                  <View style={{ flex: 1, backgroundColor: colors.panelRaised, padding: 12, marginRight: 3 }}>
+                    <Eyebrow>Chapters</Eyebrow>
+                    <Text style={[type.display, { fontSize: 24, marginTop: 2 }]}>
+                      {metadata.totalChapters}
+                    </Text>
+                  </View>
+                )}
+                {!!metadata.rating && metadata.rating > 0 && (
+                  <View style={{ flex: 1, backgroundColor: colors.panelRaised, padding: 12 }}>
+                    <Eyebrow>Rating</Eyebrow>
+                    <Text style={[type.display, { fontSize: 24, marginTop: 2 }]}>
+                      {metadata.rating.toFixed(1)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {!!metadata.genres?.length && (
+              <View style={{ marginBottom: 20 }}>
+                <Eyebrow style={{ marginBottom: 8 }}>Genres</Eyebrow>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                  {metadata.genres.map((genre, index) => (
+                    <View
+                      key={`${genre}-${index}`}
+                      style={{
+                        backgroundColor: colors.panelRaised,
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        marginRight: 3,
+                        marginBottom: 3,
+                      }}
+                    >
+                      <Data size={11}>{genre.toUpperCase()}</Data>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {!!metadata.description && (
+              <View style={{ marginBottom: 20 }}>
+                <Eyebrow style={{ marginBottom: 8 }}>Synopsis</Eyebrow>
+                <Text style={[type.body, { color: colors.tone, lineHeight: 21 }]} numberOfLines={6}>
+                  {metadata.description}
+                </Text>
+              </View>
+            )}
+
+            <View style={{ marginBottom: 22 }}>
+              <Eyebrow style={{ marginBottom: 8 }}>Source</Eyebrow>
+              <View style={{ backgroundColor: colors.panelRaised, padding: 12 }}>
+                <Text style={[type.title, { fontSize: 15 }]}>{metadata.sourceWebsite}</Text>
+                <Data size={10} color={colors.toneDim} style={{ marginTop: 4 }} >
+                  {metadata.sourceUrl}
+                </Data>
+              </View>
+            </View>
+
+            {loadingCategories ? (
+              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={colors.accent} />
+              </View>
+            ) : (
+              <PrimaryButton
+                label="Add to library"
+                onPress={handleAddToLibrary}
+                loading={addingToLibrary}
+              />
+            )}
+          </View>
+        </ScrollView>
+      </View>
+
+      <CategorySelector
+        visible={showCategorySelector}
+        categories={categories}
+        loading={loadingCategories}
+        onSelect={handleCategorySelect}
+        onClose={() => setShowCategorySelector(false)}
+        onCategoryCreated={loadCategories}
+      />
+
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
+    </>
+  );
+}
