@@ -254,3 +254,259 @@ export default function ProfileScreen() {
                       size={17}
                       color={selected ? colors.gutter : colors.tone}
                     />
+                    <Text
+                      style={{
+                        fontFamily: type.display.fontFamily,
+                        fontSize: 12,
+                        fontWeight: '800',
+                        letterSpacing: 1,
+                        textTransform: 'uppercase',
+                        marginTop: 6,
+                        color: selected ? colors.gutter : colors.tone,
+                      }}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {preference === 'system' && (
+              <Data size={11} style={{ marginTop: 10 }}>
+                FOLLOWING YOUR PHONE · CURRENTLY {scheme.toUpperCase()}
+              </Data>
+            )}
+          </Section>
+
+          <Section
+            title="Profile"
+            action={
+              !editingProfile ? (
+                <TouchableOpacity onPress={handleStartEditProfile} activeOpacity={0.8}>
+                  <Data size={12} color={colors.accent}>
+                    EDIT
+                  </Data>
+                </TouchableOpacity>
+              ) : undefined
+            }
+          >
+            {editingProfile ? (
+              <>
+                <Field
+                  label="Username"
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholder="Username"
+                  autoCapitalize="none"
+                />
+                <Field
+                  label="Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Email"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                />
+                <View style={{ flexDirection: 'row' }}>
+                  <GhostButton
+                    label="Cancel"
+                    onPress={handleCancelEditProfile}
+                    disabled={savingProfile}
+                    style={{ flex: 1, marginRight: 3 }}
+                  />
+                  <PrimaryButton
+                    label="Save changes"
+                    onPress={handleSaveProfile}
+                    loading={savingProfile}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              </>
+            ) : (
+              <>
+                <Eyebrow>Username</Eyebrow>
+                <Text style={[type.body, { fontSize: 15, marginTop: 4, marginBottom: 14 }]}>
+                  {user?.username}
+                </Text>
+                <Eyebrow>Email</Eyebrow>
+                <Text style={[type.body, { fontSize: 15, marginTop: 4 }]}>{user?.email}</Text>
+              </>
+            )}
+          </Section>
+
+          <Section title="Password">
+            <Field
+              label="Current password"
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              placeholder="Your password right now"
+              secureTextEntry
+            />
+            <Field
+              label="New password"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="At least 6 characters"
+              secureTextEntry
+            />
+            <Field
+              label="Confirm new password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Type it again"
+              secureTextEntry
+              error={
+                confirmPassword.length > 0 && newPassword !== confirmPassword
+                  ? 'The two new passwords do not match'
+                  : undefined
+              }
+            />
+            <PrimaryButton
+              label="Update password"
+              onPress={handleChangePassword}
+              loading={changingPassword}
+            />
+          </Section>
+
+          <Section title="Delete account" accent={colors.danger}>
+            <Text style={[type.body, { color: colors.tone, lineHeight: 21, marginBottom: 16 }]}>
+              Deleting removes your profile, shelves, and every series you have tracked. There is no
+              way to bring it back.
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowDeleteModal(true)}
+              activeOpacity={0.85}
+              style={{
+                borderWidth: 2,
+                borderColor: colors.danger,
+                paddingVertical: 13,
+                alignItems: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: type.display.fontFamily,
+                  fontSize: 14,
+                  fontWeight: '900',
+                  letterSpacing: 1.2,
+                  textTransform: 'uppercase',
+                  color: colors.danger,
+                }}
+              >
+                Delete my account
+              </Text>
+            </TouchableOpacity>
+          </Section>
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Delete account — password, then an explicit second confirmation */}
+      <Sheet
+        visible={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setConfirmingDelete(false);
+        }}
+        eyebrow="This cannot be undone"
+        title={confirmingDelete ? 'Delete everything?' : 'Delete account'}
+      >
+        <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+          {confirmingDelete ? (
+            <>
+              <Text style={[type.body, { color: colors.tone, lineHeight: 21, marginBottom: 20 }]}>
+                Your account, every shelf, and all tracked chapter progress will be erased
+                immediately.
+              </Text>
+              <View style={{ flexDirection: 'row' }}>
+                <GhostButton
+                  label="Keep account"
+                  onPress={() => setConfirmingDelete(false)}
+                  disabled={deletingAccount}
+                  style={{ flex: 1, marginRight: 3 }}
+                />
+                <TouchableOpacity
+                  onPress={handleDeleteAccount}
+                  disabled={deletingAccount}
+                  activeOpacity={0.85}
+                  style={{
+                    flex: 1,
+                    backgroundColor: colors.danger,
+                    paddingVertical: 15,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: deletingAccount ? 0.6 : 1,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: type.display.fontFamily,
+                      fontSize: 15,
+                      fontWeight: '900',
+                      letterSpacing: 1.2,
+                      textTransform: 'uppercase',
+                      color: colors.gutter,
+                    }}
+                  >
+                    {deletingAccount ? 'Deleting' : 'Delete'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <>
+              <Field
+                label="Password"
+                value={deletePassword}
+                onChangeText={setDeletePassword}
+                placeholder="Confirm with your password"
+                secureTextEntry
+              />
+              <View style={{ flexDirection: 'row' }}>
+                <GhostButton
+                  label="Cancel"
+                  onPress={() => setShowDeleteModal(false)}
+                  style={{ flex: 1, marginRight: 3 }}
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    if (!deletePassword) {
+                      showToast('Enter your password to confirm', 'error');
+                      return;
+                    }
+                    setConfirmingDelete(true);
+                  }}
+                  activeOpacity={0.85}
+                  style={{
+                    flex: 1,
+                    borderWidth: 2,
+                    borderColor: colors.danger,
+                    paddingVertical: 13,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: type.display.fontFamily,
+                      fontSize: 15,
+                      fontWeight: '900',
+                      letterSpacing: 1.2,
+                      textTransform: 'uppercase',
+                      color: colors.danger,
+                    }}
+                  >
+                    Continue
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </View>
+      </Sheet>
+
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
+    </View>
+  );
+}
