@@ -33,3 +33,38 @@ export interface ContinueTarget {
  * flow into a URL as a path segment, and 404. Returns the canonical numeric
  * string (so it can be reused for both the CTA label and the URL, instead
  * of ever re-using the original untrusted string), or null if invalid.
+ */
+function parseStrictChapterNumber(value: string | undefined): string | null {
+  if (!value || !/^\d+(\.\d+)?$/.test(value.trim())) return null;
+  return value.trim();
+}
+
+export function resolveContinueTarget(
+  manga: Manga,
+  currentChapter: string,
+  lastReadUrl?: string
+): ContinueTarget {
+  const currentNum = parseFloat(parseStrictChapterNumber(currentChapter) ?? '0');
+  const latestChapter = parseStrictChapterNumber(manga.lastChapterAdded);
+  const latestNum = latestChapter ? parseFloat(latestChapter) : NaN;
+  const hasNewer = !isNaN(latestNum) && latestNum > currentNum;
+
+  if (hasNewer && latestChapter) {
+    const adapter = extractorFactory.getAdapterForUrl(manga.sourceUrl);
+    const directUrl = adapter?.getChapterUrl(manga.sourceUrl, latestChapter) ?? null;
+    return {
+      chapterLabel: latestChapter,
+      // Sites without a constructible chapter URL (opaque chapter IDs, or a
+      // tokened lookup) fall back to the detail page - the reader taps the
+      // real chapter link themselves rather than following a guessed one.
+      url: directUrl ?? manga.sourceUrl,
+      isNewChapter: true,
+    };
+  }
+
+  return {
+    chapterLabel: currentChapter && currentChapter !== '0' ? currentChapter : '1',
+    url: lastReadUrl || manga.sourceUrl,
+    isNewChapter: false,
+  };
+}

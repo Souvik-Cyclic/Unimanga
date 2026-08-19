@@ -170,3 +170,176 @@ export default function HistoryScreen() {
         </View>
 
         {total > 0 && (
+          <TouchableOpacity
+            onPress={() => setShowClearConfirm(true)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Clear reading history"
+          >
+            <Data size={12} color={colors.accent}>
+              CLEAR
+            </Data>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {loading ? (
+        <View style={{ paddingVertical: 48, alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Data style={{ marginTop: 14 }}>LOADING HISTORY</Data>
+        </View>
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(entry) => entry._id}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+          stickySectionHeadersEnabled={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center' }}>
+              <EmptyState
+                headline="Nothing read yet"
+                action="Open a chapter from your library and it will show up here."
+              />
+              <Halftone style={{ marginTop: 8 }} rows={4} columns={9} />
+            </View>
+          }
+          renderSectionHeader={({ section }) => (
+            <View style={{ paddingTop: 18, paddingBottom: 8 }}>
+              <Text style={[type.eyebrow]}>{section.title}</Text>
+            </View>
+          )}
+          renderItem={({ item }) => {
+            const website =
+              typeof item.manga.sourceWebsite === 'object' ? item.manga.sourceWebsite : null;
+            const readAt = new Date(item.readAt);
+
+            return (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => setQuickViewEntry(item)}
+                style={{ marginBottom: 3, backgroundColor: colors.panel, flexDirection: 'row' }}
+              >
+                {/* Spine in the source's colour, matching the library rows */}
+                <View style={{ width: 5, backgroundColor: website?.color ?? colors.edge }} />
+
+                <Cover
+                  uri={item.manga.coverImage}
+                  title={cleanMangaTitle(item.manga.title)}
+                  width={46}
+                  height={66}
+                />
+
+                <View
+                  style={{
+                    flex: 1,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Text style={[type.title, { fontSize: 15 }]} numberOfLines={1}>
+                    {cleanMangaTitle(item.manga.title)}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Data size={12} color={colors.paper}>
+                      CHAPTER {item.chapter}
+                    </Data>
+                    <Data size={11} color={colors.toneDim} style={{ marginHorizontal: 6 }}>
+                      ·
+                    </Data>
+                    <Data size={11}>{clockTime(readAt)}</Data>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => handleRemove(item)}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove chapter ${item.chapter} of ${cleanMangaTitle(
+                    item.manga.title
+                  )} from history`}
+                  style={{ justifyContent: 'center', paddingHorizontal: 14 }}
+                >
+                  <Ionicons name="close" size={16} color={colors.toneDim} />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      )}
+
+      <Sheet
+        visible={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        eyebrow="Clear history"
+        title="Erase your reading trail?"
+      >
+        <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+          <Text style={[type.body, { color: colors.tone, lineHeight: 21, marginBottom: 20 }]}>
+            This removes every entry from this list. Your library and saved chapter progress stay
+            exactly as they are.
+          </Text>
+          <View style={{ flexDirection: 'row' }}>
+            <GhostButton
+              label="Keep it"
+              onPress={() => setShowClearConfirm(false)}
+              style={{ flex: 1, marginRight: 3 }}
+            />
+            <TouchableOpacity
+              onPress={handleClear}
+              disabled={clearing}
+              activeOpacity={0.85}
+              style={{
+                flex: 1,
+                backgroundColor: colors.danger,
+                paddingVertical: 15,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: clearing ? 0.6 : 1,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: type.display.fontFamily,
+                  fontSize: 15,
+                  fontWeight: '900',
+                  letterSpacing: 1.2,
+                  textTransform: 'uppercase',
+                  color: '#FFFFFF',
+                }}
+              >
+                {clearing ? 'Clearing' : 'Clear all'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Sheet>
+
+      <MangaQuickView
+        visible={!!quickViewEntry}
+        manga={quickViewEntry?.manga ?? null}
+        currentChapter={quickViewEntry?.chapter ?? '0'}
+        lastReadUrl={quickViewEntry?.chapterUrl}
+        lastReadAt={quickViewEntry?.readAt}
+        onClose={() => setQuickViewEntry(null)}
+        onOpenUrl={(url) => {
+          if (!quickViewEntry) return;
+          const entry = quickViewEntry;
+          setQuickViewEntry(null);
+          handleOpen(entry, url);
+        }}
+      />
+
+      <Toast visible={toast.visible} message={toast.message} type={toast.type} onHide={hideToast} />
+    </View>
+  );
+}

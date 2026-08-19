@@ -106,3 +106,112 @@ export class MetadataService {
             window.ReactNativeWebView.postMessage(JSON.stringify({ error: e.message }));
           }
           return JSON.stringify({ error: e.message });
+        }
+      })();
+      true;
+    `;
+  }
+
+  /**
+   * Parse and validate metadata from WebView message
+   * 
+   * @param jsonString - The JSON string received from the WebView
+   * @returns Parsed and validated metadata, or null if invalid
+   */
+  parseMetadata(jsonString: string): MangaMetadata | null {
+    try {
+      console.log('[MetadataService] Parsing metadata...');
+
+      if (!jsonString || typeof jsonString !== 'string') {
+        console.log('[MetadataService] Invalid input: not a string');
+        return null;
+      }
+
+      const data = JSON.parse(jsonString);
+
+      // 🐛 DEBUG MODE: If this is debug output, log it and return null
+      if (data._isDebugAdapter) {
+        console.log('==========================================');
+        console.log('🐛 DEBUG ADAPTER OUTPUT:');
+        console.log('==========================================');
+        console.log(JSON.stringify(data, null, 2));
+        console.log('==========================================');
+        return null;
+      }
+
+      // Handle redirection response (from chapter pages)
+      if (data._redirecting) {
+        console.log('[MetadataService]', data.message || 'Redirecting...');
+        return null;
+      }
+
+      if (data.error) {
+        console.log('[MetadataService] Extraction error from page:', data.error);
+        return null;
+      }
+
+      // Validate required fields
+      if (!data.title) {
+        console.log('[MetadataService] No title found in extracted data');
+        if (data._debug) {
+          console.log('[MetadataService] Debug info:', JSON.stringify(data._debug, null, 2));
+        }
+        console.log('[MetadataService] Full extracted data:', JSON.stringify(data, null, 2));
+        return null;
+      }
+
+      if (!data.sourceUrl || !data.sourceWebsite) {
+        console.log('[MetadataService] Missing required fields (sourceUrl or sourceWebsite)');
+        return null;
+      }
+
+      // Additional validation using adapter if available
+      const adapter = this.getExtractorForUrl(data.sourceUrl);
+      if (adapter) {
+        const validationResult = adapter.validateMetadata(data);
+        if (!validationResult.isValid) {
+          console.log('[MetadataService] Metadata validation failed:', validationResult.errors);
+          // Still return the data but log the issues
+        }
+      }
+
+      console.log('[MetadataService] Successfully parsed metadata for:', data.title);
+      return data as MangaMetadata;
+    } catch (error) {
+      console.log('[MetadataService] Failed to parse metadata JSON:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get all registered adapters
+   * Useful for debugging or showing supported websites
+   * 
+   * @returns Array of all registered adapters
+   */
+  getAllAdapters(): BaseWebsiteAdapter[] {
+    return extractorFactory.getAllAdapters();
+  }
+
+  /**
+   * Get supported website names
+   * 
+   * @returns Array of website names that can be extracted
+   */
+  getSupportedWebsites(): string[] {
+    return this.getAllAdapters().map(adapter => adapter.getName());
+  }
+
+  /**
+   * Get adapter by website name
+   * 
+   * @param name - The name of the website
+   * @returns The matching adapter, or null if not found
+   */
+  getAdapterByName(name: string): BaseWebsiteAdapter | null {
+    return extractorFactory.getAdapterByName(name);
+  }
+}
+
+// Export singleton instance
+export const metadataService = MetadataService.getInstance();

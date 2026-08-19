@@ -151,3 +151,190 @@ export const getUserLibrary = async (req, res) => {
     const library = await UserManga.find(filter)
       .populate({
         path: 'manga',
+        populate: {
+          path: 'sourceWebsite',
+          model: 'Website'
+        }
+      })
+      .populate('category')
+      .sort({ lastReadAt: -1, updatedAt: -1 });
+
+    res.status(200).json({
+      library,
+      count: library.length,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Update manga progress
+export const updateMangaProgress = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { currentChapter, totalChaptersRead, progress, status, chapterProgress, lastReadUrl } = req.body;
+
+    const updateData = {
+      lastReadAt: new Date(),
+    };
+
+    if (currentChapter !== undefined) updateData.currentChapter = currentChapter;
+    if (totalChaptersRead !== undefined) updateData.totalChaptersRead = totalChaptersRead;
+    if (progress !== undefined) updateData.progress = progress;
+    if (lastReadUrl) updateData.lastReadUrl = lastReadUrl;
+    if (status) {
+      updateData.status = status;
+      if (status === 'reading' && !updateData.startedAt) {
+        updateData.startedAt = new Date();
+      }
+      if (status === 'completed') {
+        updateData.completedAt = new Date();
+        updateData.progress = 100;
+      }
+    }
+    if (chapterProgress) updateData.chapterProgress = chapterProgress;
+
+    const userManga = await UserManga.findOneAndUpdate(
+      { _id: id, user: userId },
+      updateData,
+      { returnDocument: 'after' }
+    )
+      .populate('manga')
+      .populate('category');
+
+    if (!userManga) {
+      return res.status(404).json({ message: 'Manga not found in library' });
+    }
+
+    // Saving progress is the moment a chapter counts as read, so the trail is
+    // written here rather than asking every caller to record it separately.
+    if (currentChapter !== undefined) {
+      await recordRead({
+        userId,
+        mangaId: userManga.manga?._id ?? userManga.manga,
+        userMangaId: userManga._id,
+        chapter: currentChapter,
+        chapterUrl: lastReadUrl ?? userManga.lastReadUrl,
+      });
+    }
+
+    res.status(200).json({
+      message: 'Progress updated',
+      userManga,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Update manga category
+export const updateMangaCategory = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { categoryId } = req.body;
+
+    const userManga = await UserManga.findOneAndUpdate(
+      { _id: id, user: userId },
+      { category: categoryId },
+      { returnDocument: 'after' }
+    )
+      .populate('manga')
+      .populate('category');
+
+    if (!userManga) {
+      return res.status(404).json({ message: 'Manga not found in library' });
+    }
+
+    res.status(200).json({
+      message: 'Category updated',
+      userManga,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Toggle favorite
+export const toggleFavorite = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const userManga = await UserManga.findOne({ _id: id, user: userId });
+    
+    if (!userManga) {
+      return res.status(404).json({ message: 'Manga not found in library' });
+    }
+
+    userManga.favorite = !userManga.favorite;
+    await userManga.save();
+
+    await userManga.populate('manga');
+    await userManga.populate('category');
+
+    res.status(200).json({
+      message: userManga.favorite ? 'Added to favorites' : 'Removed from favorites',
+      userManga,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Update rating and notes
+export const updateMangaDetails = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+    const { rating, notes } = req.body;
+
+    const updateData = {};
+    if (rating !== undefined) updateData.rating = rating;
+    if (notes !== undefined) updateData.notes = notes;
+
+    const userManga = await UserManga.findOneAndUpdate(
+      { _id: id, user: userId },
+      updateData,
+      { returnDocument: 'after' }
+    )
+      .populate('manga')
+      .populate('category');
+
+    if (!userManga) {
+      return res.status(404).json({ message: 'Manga not found in library' });
+    }
+
+    res.status(200).json({
+      message: 'Details updated',
+      userManga,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Remove manga from library
+export const removeMangaFromLibrary = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const userManga = await UserManga.findOneAndDelete({ _id: id, user: userId });
+
+    if (!userManga) {
+      return res.status(404).json({ message: 'Manga not found in library' });
+    }
+
+    // The reading trail describes a series the reader no longer tracks, so it
+    // goes with it.
+    await ReadHistory.deleteMany({ user: userId, manga: userManga.manga });
+
+    res.status(200).json({
+      message: 'Manga removed from library',
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

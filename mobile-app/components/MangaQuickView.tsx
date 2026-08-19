@@ -102,3 +102,108 @@ export default function MangaQuickView({
                 <Text style={[type.display, { fontSize: 20 }]} numberOfLines={3}>
                   {title}
                 </Text>
+                <TouchableOpacity onPress={() => onOpenUrl(manga.sourceUrl)} activeOpacity={0.7}>
+                  <Data size={12} color={colors.accent} style={{ marginTop: 8 }}>
+                    {hostname}
+                  </Data>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Progress row */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingVertical: 12,
+                borderTopWidth: 1,
+                borderTopColor: colors.edge,
+                borderStyle: 'dashed',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="bookmark-outline" size={16} color={colors.accent} style={{ marginRight: 10 }} />
+                <Text style={[type.body, { fontSize: 14, fontWeight: '700' }]}>
+                  {currentChapter && currentChapter !== '0' ? `Ch.${currentChapter}` : 'Not started'}
+                </Text>
+              </View>
+              {!!lastReadAt && (
+                <Data size={11} color={colors.toneDim}>
+                  {formatRelativeTime(lastReadAt)}
+                </Data>
+              )}
+            </View>
+
+            {/* Shelf / status row */}
+            {!!categoryName && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: 12,
+                  borderTopWidth: 1,
+                  borderTopColor: colors.edge,
+                  borderStyle: 'dashed',
+                }}
+              >
+                <Ionicons name="folder-outline" size={16} color={colors.gold} style={{ marginRight: 10 }} />
+                <Text style={[type.body, { fontSize: 14, fontWeight: '700' }]}>{categoryName}</Text>
+              </View>
+            )}
+
+            {/* Chapters link + continue CTA */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: 20,
+                borderTopWidth: 1,
+                borderTopColor: colors.edge,
+                borderStyle: 'dashed',
+                marginTop: 4,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => onOpenUrl(manga.sourceUrl)}
+                activeOpacity={0.7}
+                style={{ flexDirection: 'row', alignItems: 'center' }}
+              >
+                <Ionicons name="list-outline" size={15} color={colors.tone} style={{ marginRight: 6 }} />
+                <Text style={[type.body, { fontSize: 13, fontWeight: '700', color: colors.tone }]}>
+                  Chapters
+                </Text>
+              </TouchableOpacity>
+
+              {!!continueTarget && (
+                <TouchableOpacity
+                  onPress={() => onOpenUrl(continueTarget.url)}
+                  activeOpacity={0.85}
+                  style={{
+                    backgroundColor: colors.accent,
+                    paddingHorizontal: 24,
+                    paddingVertical: 13,
+                    borderRadius: 999,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: type.display.fontFamily,
+                      fontSize: 14,
+                      fontWeight: '900',
+                      letterSpacing: 0.5,
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    Ch.{continueTarget.chapterLabel}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
