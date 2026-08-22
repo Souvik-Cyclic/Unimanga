@@ -52,3 +52,57 @@ export const addHistoryEntry = async (req, res) => {
       return res.status(400).json({ message: 'Nothing to record for that chapter' });
     }
 
+    res.status(201).json({ message: 'Reading recorded', entry });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/** GET /api/history — the reader's trail, newest first. */
+export const getHistory = async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    const skip = Math.max(parseInt(req.query.skip, 10) || 0, 0);
+
+    const [history, total] = await Promise.all([
+      ReadHistory.find({ user: req.user.id })
+        .populate({ path: 'manga', populate: { path: 'sourceWebsite' } })
+        .sort({ readAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      ReadHistory.countDocuments({ user: req.user.id }),
+    ]);
+
+    res.status(200).json({ history, count: history.length, total });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/** DELETE /api/history/:id — drop a single entry. */
+export const deleteHistoryEntry = async (req, res) => {
+  try {
+    const entry = await ReadHistory.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user.id,
+    });
+
+    if (!entry) {
+      return res.status(404).json({ message: 'History entry not found' });
+    }
+
+    res.status(200).json({ message: 'History entry removed' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+/** DELETE /api/history — clear the whole trail. */
+export const clearHistory = async (req, res) => {
+  try {
+    const result = await ReadHistory.deleteMany({ user: req.user.id });
+    res.status(200).json({ message: 'History cleared', removed: result.deletedCount });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
