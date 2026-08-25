@@ -250,6 +250,21 @@ Deployed instance:
 
 Running locally the same paths sit under <http://localhost:3000>.
 
+**The reference is behind HTTP Basic auth** — the browser prompts on first
+visit:
+
+| Field | Value |
+|-------|-------|
+| Username | `admin` |
+| Password | `password` |
+
+```bash
+curl -u admin:password https://unimanga-471g.onrender.com/docs.json
+```
+
+Set `DOCS_USER` and `DOCS_PASSWORD` to change them; leave either unset and the
+docs are served without a prompt, which is the default for local development.
+
 > The API is on Render's free tier, so the first request after a period of
 > inactivity takes a few seconds while the instance wakes up.
 
@@ -342,6 +357,8 @@ npx eas build --profile preview --platform android
 | `JWT_SECRET` | Signing secret for access and refresh tokens | — (required) |
 | `PORT` | HTTP port | `3000` |
 | `NODE_ENV` | Runtime environment | `development` |
+| `DOCS_USER` | Basic auth username for `/docs` and `/docs.json` | unset — docs open |
+| `DOCS_PASSWORD` | Basic auth password for the docs | unset — docs open |
 
 ### Mobile — `mobile-app/.env`
 
