@@ -242,3 +242,203 @@ With the API running:
 - **Health** — `GET /` returns status, docs path and a timestamp
 
 | Base path | Purpose |
+|-----------|---------|
+| `/api/auth` | Register, login, profile, password change, account deletion |
+| `/api/manga` | Catalogue search and manga details |
+| `/api/library` | A user's saved manga |
+| `/api/categories` | User-defined library categories |
+| `/api/history` | Reading history and chapter progress |
+| `/api/websites` | Supported source registry |
+
+Every route except register, login and health expects
+`Authorization: Bearer <access token>`.
+
+---
+
+## 🔄 Continuous Integration
+
+Two GitHub Actions workflows run on pushes to `main` and on pull requests.
+Each is path-filtered, so backend changes do not rebuild the app and vice
+versa.
+
+```mermaid
+flowchart LR
+    push["git push / PR"] --> be
+    push --> mo
+
+    subgraph be["backend-ci.yml — backend/**"]
+        b1["npm ci"] --> b2["eslint"] --> b3["node --test"] --> b4["docker build<br/>+ smoke run"]
+    end
+
+    subgraph mo["mobile-ci.yml — mobile-app/**"]
+        m1["npm ci"] --> m2["tsc --noEmit"] --> m3["expo-doctor"]
+    end
+```
+
+| Workflow | Trigger paths | Steps |
+|----------|---------------|-------|
+| `backend-ci.yml` | `backend/**` | install → lint → test → build and smoke-run the Docker image |
+| `mobile-ci.yml` | `mobile-app/**` | install → TypeScript typecheck → `expo-doctor` project validation |
+
+**Why each step is there**
+
+- **Lint** — catches unused bindings and syntax slips before review.
+- **Tests** — the endpoint suite runs against an in-memory MongoDB, so a
+  broken contract fails the build without any external service.
+- **Docker build and smoke run** — proves the image still starts, which a unit
+  test cannot tell you.
+- **Typecheck** — the app is TypeScript end to end; `tsc --noEmit` is the
+  cheapest way to keep screens and adapters in sync.
+- **expo-doctor** — flags dependency versions that Expo SDK 54 does not support.
+
+---
+
+## 🚢 Deployment
+
+### API image
+
+```bash
+docker build -t <registry-user>/unimanga-backend:latest backend
+docker login
+docker push <registry-user>/unimanga-backend:latest
+```
+
+Run it anywhere with `MONGO_URI`, `JWT_SECRET` and `PORT` set. The image runs
+as a non-root user and ships a `HEALTHCHECK` that polls `/`.
+
+### Mobile builds
+
+Build profiles live in `mobile-app/eas.json`:
+
+```bash
+cd mobile-app
+npx eas build --profile preview --platform android
+```
+
+---
+
+## ⚙️ Configuration
+
+### Backend — `backend/.env`
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MONGO_URI` | MongoDB connection string | — (required) |
+| `JWT_SECRET` | Signing secret for access and refresh tokens | — (required) |
+| `PORT` | HTTP port | `3000` |
+| `NODE_ENV` | Runtime environment | `development` |
+
+### Mobile — `mobile-app/.env`
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `EXPO_PUBLIC_API_URL` | Base URL of the API | `http://localhost:3000` |
+
+### ESLint — `backend/.eslintrc.json`
+
+```json
+{
+  "env": { "node": true, "es2020": true },
+  "extends": "eslint:recommended",
+  "parserOptions": { "ecmaVersion": 2020, "sourceType": "module" },
+  "rules": { "no-unused-vars": "warn", "no-console": "off" }
+}
+```
+
+---
+
+## 🧪 Testing
+
+The suite uses the Node test runner with `supertest` and
+`mongodb-memory-server`, so no database has to be running.
+
+```bash
+cd backend
+npm test            # every suite
+npm run test:watch  # re-run on change
+```
+
+| File | Covers |
+|------|--------|
+| `tests/health.test.js` | Health endpoint |
+| `tests/auth.test.js` | Signup, login, refresh, protected routes |
+| `tests/catalogue.test.js` | Manga search and pagination |
+| `tests/categories.test.js` | Category CRUD |
+| `tests/library.test.js` | Library add/remove and category assignment |
+| `tests/history.test.js` | Reading history and progress sync |
+
+Shared helpers live in `tests/helpers/` — `testServer.js` mounts the same
+Express app the server uses, `fixtures.js` creates users and manga.
+
+---
+
+## 🤝 Contributing
+
+```bash
+git checkout -b feat/your-feature
+# work, then:
+npm run lint && npm test
+git commit -m "feat(library): add bulk category assignment"
+git push origin feat/your-feature
+```
+
+Open a pull request once CI is green.
+
+### Code standards
+
+- **JavaScript / TypeScript** — ES2020+, `async`/`await` over promise chains
+- **Naming** — camelCase for values, PascalCase for components and classes
+- **Comments** — explain why, not what; JSDoc on exported functions
+- **Tests** — an endpoint test for every new route
+
+### Commit format
+
+```
+<type>(<scope>): <subject>
+```
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `build`, `ci`.
+
+---
+
+## 📄 License
+
+Released under the MIT License.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Expo** — React Native tooling and OTA workflow
+- **MongoDB Atlas** — free-tier cloud database
+- **Swagger UI** — the interactive API reference
+
+---
+
+## 📞 Contact & Support
+
+- **Issues** — <https://github.com/Souvik-Cyclic/Unimanga/issues>
+- **Pull requests** — <https://github.com/Souvik-Cyclic/Unimanga/pulls>
+
+---
+
+## 🗺️ Roadmap
+
+**Phase 1 — Core (done)**
+- [x] Authenticated REST API on MongoDB
+- [x] Expo client with library, reader and history
+- [x] Source adapters for 10 manga sites
+- [x] Dockerised API and CI on both projects
+
+**Phase 2 — Hardening**
+- [ ] Security scanning (SAST and dependency audit) in CI
+- [ ] Automated image publishing on tagged releases
+- [ ] Rate limiting and refresh tokens
+
+**Phase 3 — Observability**
+- [ ] Structured request logging
+- [ ] Metrics and alerting
+
+**Phase 4 — Performance**
+- [ ] Catalogue caching layer
+- [ ] Offline chapter storage on device
