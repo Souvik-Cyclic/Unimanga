@@ -10,6 +10,12 @@ on:
     paths:
       - 'mobile-app/**'
       - '.github/workflows/mobile-ci.yml'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Build and publish even if the version was already released'
+        type: boolean
+        default: false
 
 jobs:
   typecheck:
@@ -38,3 +44,131 @@ jobs:
 
       - name: Validate expo project
         run: npx expo-doctor
+
+  version:
+    name: Check app version
+    # An Android build costs a quarter of an hour, so it only runs when
+    # expo.version in app.json names a version that has not shipped yet.
+    # Bump the version to publish; force a rebuild from the Actions tab.
+    if: github.event_name != 'pull_request'
+    needs: typecheck
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      publish: ${{ steps.check.outputs.publish }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Compare app version against published releases
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCED: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          VERSION=$(jq -r '.expo.version' mobile-app/app.json)
+          TAG="v$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if [ "$FORCED" = "true" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Forced build of $TAG"
+          elif gh release view "$TAG" >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$TAG is already published — bump expo.version in mobile-app/app.json to ship a new build"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Building $TAG"
+          fi
+
+  apk:
+    name: Build and publish APK
+    needs: version
+    if: needs.version.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile-app/package-lock.json
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: mobile-app
+
+      - name: Generate native project
+        run: npx expo prebuild --platform android --no-install
+        working-directory: mobile-app
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://unimanga-471g.onrender.com' }}
+
+      # One APK per ABI instead of a universal build: a universal APK carries
+      # every architecture's native libraries, which roughly triples the
+      # download for no benefit on a given phone.
+      #
+      # Signed with the debug keystore the template generates: installable by
+      # sideload, not uploadable to the Play Store. Swap in a real keystore
+      # (base64 secret + signingConfigs) when a store listing is needed.
+      - name: Build release APKs
+        run: |
+          set -euo pipefail
+          for abi in arm64-v8a armeabi-v7a; do
+            echo "::group::$abi"
+            ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures="$abi"
+            mkdir -p ../../dist
+            cp app/build/outputs/apk/release/app-release.apk "../../dist/unimanga-$VERSION-$abi.apk"
+            echo "::endgroup::"
+          done
+        working-directory: mobile-app/android
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://unimanga-471g.onrender.com' }}
+
+      - name: List artifacts
+        run: ls -lh dist
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+          # How many releases to keep. Older ones are deleted so the release
+          # page always shows the current build rather than a pile of them.
+          KEEP: 1
+        run: |
+          set -euo pipefail
+          TAG="v$VERSION"
+
+          gh release create "$TAG" dist/*.apk \
+            --title "UniManga $VERSION" \
+            --target "$GITHUB_SHA" \
+            --notes "Built from \`${GITHUB_SHA::7}\`.
+
+          Install on Android: download \`unimanga-$VERSION-arm64-v8a.apk\` (any phone from the last decade) or \`unimanga-$VERSION-armeabi-v7a.apk\` (older 32-bit devices), then allow installs from unknown sources."
+
+          # Drop superseded releases, newest first past the keep count.
+          gh release list --limit 100 --json tagName,createdAt \
+            --jq 'sort_by(.createdAt) | reverse | .[].tagName' \
+          | tail -n "+$((KEEP + 1))" \
+          | while read -r old; do
+              echo "Removing superseded release $old"
+              gh release delete "$old" --yes --cleanup-tag
+            done
