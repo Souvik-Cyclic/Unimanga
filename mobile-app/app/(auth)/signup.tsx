@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StatusBar,
   KeyboardAvoidingView,
@@ -107,6 +108,12 @@ export default function SignupScreen() {
         >
           <View style={{ paddingHorizontal: 24, paddingVertical: 40 }}>
             <View style={{ marginBottom: 32 }}>
+              <Image
+                source={require('../../assets/logo.png')}
+                style={{ width: 64, height: 64, marginBottom: 16, marginLeft: -5 }}
+                resizeMode="contain"
+                accessibilityIgnoresInvertColors
+              />
               <Eyebrow style={{ marginBottom: 10 }}>Start your library</Eyebrow>
               <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
                 <Text style={[type.display, { fontSize: 44, lineHeight: 46, textTransform: 'uppercase' }]}>

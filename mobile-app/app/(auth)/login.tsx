@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StatusBar,
   KeyboardAvoidingView,
@@ -106,8 +107,14 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={{ paddingHorizontal: 24, paddingVertical: 40 }}>
-            {/* Wordmark, set as a stacked masthead */}
+            {/* Wordmark, set as a stacked masthead under the mark */}
             <View style={{ marginBottom: 36 }}>
+              <Image
+                source={require('../../assets/logo.png')}
+                style={{ width: 72, height: 72, marginBottom: 18, marginLeft: -6 }}
+                resizeMode="contain"
+                accessibilityIgnoresInvertColors
+              />
               <Eyebrow style={{ marginBottom: 10 }}>One library, every source</Eyebrow>
               <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
                 <Text style={[type.display, { fontSize: 52, lineHeight: 54, textTransform: 'uppercase' }]}>

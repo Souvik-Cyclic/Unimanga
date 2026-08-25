@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StatusBar,
   ScrollView,
@@ -298,6 +299,12 @@ export default function HomeScreen() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+              <Image
+                source={require('../../assets/logo.png')}
+                style={{ width: 30, height: 30, marginRight: 8, marginBottom: 1 }}
+                resizeMode="contain"
+                accessibilityIgnoresInvertColors
+              />
               <Text style={[type.display, { fontSize: 34, textTransform: 'uppercase' }]}>
                 UniManga
               </Text>
