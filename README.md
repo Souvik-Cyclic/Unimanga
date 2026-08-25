@@ -8,6 +8,8 @@ A manga reading and library management platform: an Expo mobile client that
 reads from public manga sources, backed by an Express API that keeps each
 user's library, categories and reading progress in MongoDB.
 
+**Live API:** <https://unimanga-471g.onrender.com> · **API reference:** <https://unimanga-471g.onrender.com/docs>
+
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
@@ -205,7 +207,11 @@ npx expo start
 `.env` in `mobile-app/`:
 
 ```env
-EXPO_PUBLIC_API_URL=http://localhost:3000
+# Deployed API
+EXPO_PUBLIC_API_URL=https://unimanga-471g.onrender.com
+
+# Or a local backend
+# EXPO_PUBLIC_API_URL=http://localhost:3000
 ```
 
 > On a physical device `localhost` points at the phone. Use the machine's LAN
@@ -235,11 +241,17 @@ docker run --rm -it -p 8081:8081 -p 19000:19000 unimanga-mobile:dev
 
 ## 📖 API Reference
 
-With the API running:
+Deployed instance:
 
-- **Swagger UI** — <http://localhost:3000/docs>
-- **OpenAPI document** — <http://localhost:3000/docs.json>
-- **Health** — `GET /` returns status, docs path and a timestamp
+- **Base URL** — <https://unimanga-471g.onrender.com>
+- **Swagger UI** — <https://unimanga-471g.onrender.com/docs>
+- **OpenAPI document** — <https://unimanga-471g.onrender.com/docs.json>
+- **Health** — <https://unimanga-471g.onrender.com/> returns status, docs path and a timestamp
+
+Running locally the same paths sit under <http://localhost:3000>.
+
+> The API is on Render's free tier, so the first request after a period of
+> inactivity takes a few seconds while the instance wakes up.
 
 | Base path | Purpose |
 |-----------|---------|
@@ -305,6 +317,9 @@ docker push <registry-user>/unimanga-backend:latest
 
 Run it anywhere with `MONGO_URI`, `JWT_SECRET` and `PORT` set. The image runs
 as a non-root user and ships a `HEALTHCHECK` that polls `/`.
+
+The hosted instance runs on Render at <https://unimanga-471g.onrender.com>,
+built from `backend/` on every push to `main`.
 
 ### Mobile builds
 
