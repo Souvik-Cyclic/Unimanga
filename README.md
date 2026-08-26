@@ -1,4 +1,4 @@
-# UniManga — Manga Reading & Library Management Platform
+# UniManga - Manga Reading & Library Management Platform
 
 [![Backend CI](https://github.com/Souvik-Cyclic/Unimanga/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/Souvik-Cyclic/Unimanga/actions/workflows/backend-ci.yml)
 [![Mobile CI](https://github.com/Souvik-Cyclic/Unimanga/actions/workflows/mobile-ci.yml/badge.svg)](https://github.com/Souvik-Cyclic/Unimanga/actions/workflows/mobile-ci.yml)
@@ -10,30 +10,31 @@ user's library, categories and reading progress in MongoDB.
 
 **Live API:** <https://unimanga-471g.onrender.com> · **API reference:** <https://unimanga-471g.onrender.com/docs>
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [Overview](#-overview)
-- [Features](#-features)
-- [Architecture](#️-architecture)
-- [Repository Layout](#-repository-layout)
-- [Getting Started](#-getting-started)
-- [Running Locally](#-running-locally)
-- [API Reference](#-api-reference)
-- [Continuous Integration](#-continuous-integration)
-- [Deployment](#-deployment)
-- [Configuration](#️-configuration)
-- [Testing](#-testing)
-- [Contributing](#-contributing)
-- [License](#-license)
+- [Overview](#overview)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Architecture](#architecture)
+- [Repository Layout](#repository-layout)
+- [Getting Started](#getting-started)
+- [Running Locally](#running-locally)
+- [API Reference](#api-reference)
+- [Continuous Integration](#continuous-integration)
+- [Deployment](#deployment)
+- [Configuration](#configuration)
+- [Testing](#testing)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## 🎯 Overview
+## Overview
 
 UniManga is a full-stack application consisting of:
 
-- **Mobile App** — React Native (Expo Router) client for Android and iOS
-- **Backend API** — Node.js (Express 5) REST API on MongoDB
+- **Mobile App** - React Native (Expo Router) client for Android and iOS
+- **Backend API** - Node.js (Express 5) REST API on MongoDB
 
 Manga pages are never mirrored. The client opens each source site in a
 WebView and a per-site adapter extracts titles, covers and chapter lists from
@@ -50,49 +51,67 @@ the live page; the API only stores what a user saved and how far they read.
 
 ---
 
-## ✨ Features
+## Features
 
 ### Application
 
-- 📚 **Library management** — save manga, sort them into user-defined categories
-- 🔐 **Authentication** — JWT-protected routes, bcrypt-hashed passwords
-- 🌐 **Multi-source support** — 10 site adapters behind one extractor factory
-- 📖 **Reading history** — chapter progress synced across devices
-- 🎨 **Light and dark themes** — shared token palette across every screen
-- 🚫 **Ad filtering** — request blocking inside the source WebView
+- **Library management** - save manga, sort them into user-defined categories
+- **Authentication** - JWT-protected routes, bcrypt-hashed passwords
+- **Multi-source support** - 10 site adapters behind one extractor factory
+- **Reading history** - chapter progress synced across devices
+- **Light and dark themes** - shared token palette across every screen
+- **Ad filtering** - request blocking inside the source WebView
 
 ### Platform
 
-- 🐳 **Containerised** — multi-stage Alpine image for the API, dev image for the app
-- 🔄 **CI on every push** — lint, tests, typecheck and an image build
-- 📑 **Interactive API docs** — Swagger UI served by the API itself
-- 🧪 **Endpoint test suite** — Node test runner against an in-memory MongoDB
-- 🔒 **Config through environment only** — no secrets in the repository
+- **Containerised** - multi-stage Alpine image for the API, dev image for the app
+- **CI on every push** - lint, tests, typecheck and an image build
+- **Interactive API docs** - Swagger UI served by the API itself
+- **Endpoint test suite** - Node test runner against an in-memory MongoDB
+- **Config through environment only** - no secrets in the repository
 
 ---
 
-## 🏗️ Architecture
+## Screenshots
+
+| Sign in | Create account | Library |
+|:---:|:---:|:---:|
+| <img src="screenshots/01-login.png" width="230" alt="Login screen"> | <img src="screenshots/02-signup.png" width="230" alt="Signup screen"> | <img src="screenshots/09-library.png" width="230" alt="Library with a saved series"> |
+
+| Sources | In-app browser | Series details |
+|:---:|:---:|:---:|
+| <img src="screenshots/04-sources.png" width="230" alt="Registered manga sources"> | <img src="screenshots/05-browser.png" width="230" alt="Source site inside the in-app browser"> | <img src="screenshots/07-quick-view.png" width="230" alt="Scraped metadata in the quick view panel"> |
+
+| Shelves | Reading history | Account |
+|:---:|:---:|:---:|
+| <img src="screenshots/08-shelf-picker.png" width="230" alt="Choosing a shelf for a series"> | <img src="screenshots/10-history.png" width="230" alt="Reading history"> | <img src="screenshots/11-profile.png" width="230" alt="Account screen with theme switch"> |
+
+Both palettes ship together - the same library on paper rather than ink:
+
+<img src="screenshots/12-light-theme.png" width="230" alt="Library in the light theme">
+
+## Architecture
 
 ```mermaid
 flowchart TB
-    subgraph client["📱 Client"]
+    subgraph client["Client"]
         app["Expo App<br/>(React Native)"]
         wv["Source WebView<br/>+ site adapters"]
         app <--> wv
     end
 
-    subgraph api["⚙️ Express API — Node.js 20"]
+    subgraph api["Express API - Node.js 20"]
         mw["JWT auth middleware"]
         ctrl["Controllers<br/>auth · manga · library<br/>categories · history · websites"]
         odm["Mongoose models"]
         mw --> ctrl --> odm
     end
 
-    subgraph data["🗄️ Data"]
+    subgraph data["Data"]
         db[("MongoDB<br/>users · manga · userManga<br/>categories · readHistory · websites")]
     end
 
-    sites["🌐 Manga source sites"]
+    sites["Manga source sites"]
 
     app -- "REST / JSON over HTTPS" --> mw
     wv -- "HTML scrape" --> sites
@@ -102,11 +121,11 @@ flowchart TB
 **Request flow.** The app sends a JWT with every call. `auth.middleware.js`
 verifies it and attaches the user, the controller does the work through a
 Mongoose model, and the response goes back as JSON. Source scraping never
-touches the API — it happens in the WebView on the device.
+touches the API - it happens in the WebView on the device.
 
 ---
 
-## 📁 Repository Layout
+## Repository Layout
 
 ```
 .
@@ -122,7 +141,7 @@ touches the API — it happens in the WebView on the device.
 │   ├── tests/             Endpoint tests (in-memory MongoDB)
 │   └── Dockerfile         Multi-stage production image
 └── mobile-app/            Expo React Native client
-    ├── app/               Expo Router screens — (auth) and (main) stacks
+    ├── app/               Expo Router screens - (auth) and (main) stacks
     ├── components/        Shared UI components
     ├── constants/         Theme tokens and theme context
     ├── hooks/             Library and WebView hooks
@@ -134,13 +153,13 @@ touches the API — it happens in the WebView on the device.
 
 ---
 
-## 🏁 Getting Started
+## Getting Started
 
 ### Prerequisites
 
 - **Node.js** 20.x LTS and **npm** 9+
-- **MongoDB** — Atlas free tier or a local instance
-- **Docker** 20+ *(optional — for the containerised workflow)*
+- **MongoDB** - Atlas free tier or a local instance
+- **Docker** 20+ *(optional - for the containerised workflow)*
 - **Expo Go** on a phone, or an Android/iOS emulator
 
 ### Quick Start
@@ -171,7 +190,7 @@ node scripts/seedWebsites.js
 
 ---
 
-## 💻 Running Locally
+## Running Locally
 
 ### Backend API
 
@@ -239,18 +258,18 @@ docker run --rm -it -p 8081:8081 -p 19000:19000 unimanga-mobile:dev
 
 ---
 
-## 📖 API Reference
+## API Reference
 
 Deployed instance:
 
-- **Base URL** — <https://unimanga-471g.onrender.com>
-- **Swagger UI** — <https://unimanga-471g.onrender.com/docs>
-- **OpenAPI document** — <https://unimanga-471g.onrender.com/docs.json>
-- **Health** — <https://unimanga-471g.onrender.com/> returns status, docs path and a timestamp
+- **Base URL** - <https://unimanga-471g.onrender.com>
+- **Swagger UI** - <https://unimanga-471g.onrender.com/docs>
+- **OpenAPI document** - <https://unimanga-471g.onrender.com/docs.json>
+- **Health** - <https://unimanga-471g.onrender.com/> returns status, docs path and a timestamp
 
 Running locally the same paths sit under <http://localhost:3000>.
 
-**The reference is behind HTTP Basic auth** — the browser prompts on first
+**The reference is behind HTTP Basic auth** - the browser prompts on first
 visit:
 
 | Field | Value |
@@ -282,7 +301,7 @@ Every route except register, login and health expects
 
 ---
 
-## 🔄 Continuous Integration
+## Continuous Integration
 
 Two GitHub Actions workflows run on pushes to `main` and on pull requests.
 Each is path-filtered, so backend changes do not rebuild the app and vice
@@ -293,34 +312,34 @@ flowchart LR
     push["git push / PR"] --> be
     push --> mo
 
-    subgraph be["backend-ci.yml — backend/**"]
+    subgraph be["backend-ci.yml - backend/**"]
         b1["npm ci"] --> b2["eslint"] --> b3["node --test"] --> b4["docker build<br/>+ smoke run"]
     end
 
-    subgraph mo["mobile-ci.yml — mobile-app/**"]
+    subgraph mo["mobile-ci.yml - mobile-app/**"]
         m1["npm ci"] --> m2["tsc --noEmit"] --> m3["expo-doctor"]
     end
 ```
 
 | Workflow | Trigger paths | Steps |
 |----------|---------------|-------|
-| `backend-ci.yml` | `backend/**` | install → lint → test → build and smoke-run the Docker image |
-| `mobile-ci.yml` | `mobile-app/**` | install → TypeScript typecheck → `expo-doctor` project validation |
+| `backend-ci.yml` | `backend/**` | install  lint  test  build and smoke-run the Docker image |
+| `mobile-ci.yml` | `mobile-app/**` | install  TypeScript typecheck  `expo-doctor` project validation |
 
 **Why each step is there**
 
-- **Lint** — catches unused bindings and syntax slips before review.
-- **Tests** — the endpoint suite runs against an in-memory MongoDB, so a
+- **Lint** - catches unused bindings and syntax slips before review.
+- **Tests** - the endpoint suite runs against an in-memory MongoDB, so a
   broken contract fails the build without any external service.
-- **Docker build and smoke run** — proves the image still starts, which a unit
+- **Docker build and smoke run** - proves the image still starts, which a unit
   test cannot tell you.
-- **Typecheck** — the app is TypeScript end to end; `tsc --noEmit` is the
+- **Typecheck** - the app is TypeScript end to end; `tsc --noEmit` is the
   cheapest way to keep screens and adapters in sync.
-- **expo-doctor** — flags dependency versions that Expo SDK 54 does not support.
+- **expo-doctor** - flags dependency versions that Expo SDK 54 does not support.
 
 ---
 
-## 🚢 Deployment
+## Deployment
 
 ### API image
 
@@ -347,26 +366,26 @@ npx eas build --profile preview --platform android
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-### Backend — `backend/.env`
+### Backend - `backend/.env`
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `MONGO_URI` | MongoDB connection string | — (required) |
-| `JWT_SECRET` | Signing secret for access and refresh tokens | — (required) |
+| `MONGO_URI` | MongoDB connection string | - (required) |
+| `JWT_SECRET` | Signing secret for access and refresh tokens | - (required) |
 | `PORT` | HTTP port | `3000` |
 | `NODE_ENV` | Runtime environment | `development` |
-| `DOCS_USER` | Basic auth username for `/docs` and `/docs.json` | unset — docs open |
-| `DOCS_PASSWORD` | Basic auth password for the docs | unset — docs open |
+| `DOCS_USER` | Basic auth username for `/docs` and `/docs.json` | unset - docs open |
+| `DOCS_PASSWORD` | Basic auth password for the docs | unset - docs open |
 
-### Mobile — `mobile-app/.env`
+### Mobile - `mobile-app/.env`
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `EXPO_PUBLIC_API_URL` | Base URL of the API | `http://localhost:3000` |
 
-### ESLint — `backend/.eslintrc.json`
+### ESLint - `backend/.eslintrc.json`
 
 ```json
 {
@@ -379,7 +398,7 @@ npx eas build --profile preview --platform android
 
 ---
 
-## 🧪 Testing
+## Testing
 
 The suite uses the Node test runner with `supertest` and
 `mongodb-memory-server`, so no database has to be running.
@@ -399,12 +418,12 @@ npm run test:watch  # re-run on change
 | `tests/library.test.js` | Library add/remove and category assignment |
 | `tests/history.test.js` | Reading history and progress sync |
 
-Shared helpers live in `tests/helpers/` — `testServer.js` mounts the same
+Shared helpers live in `tests/helpers/` - `testServer.js` mounts the same
 Express app the server uses, `fixtures.js` creates users and manga.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 ```bash
 git checkout -b feat/your-feature
@@ -418,10 +437,10 @@ Open a pull request once CI is green.
 
 ### Code standards
 
-- **JavaScript / TypeScript** — ES2020+, `async`/`await` over promise chains
-- **Naming** — camelCase for values, PascalCase for components and classes
-- **Comments** — explain why, not what; JSDoc on exported functions
-- **Tests** — an endpoint test for every new route
+- **JavaScript / TypeScript** - ES2020+, `async`/`await` over promise chains
+- **Naming** - camelCase for values, PascalCase for components and classes
+- **Comments** - explain why, not what; JSDoc on exported functions
+- **Tests** - an endpoint test for every new route
 
 ### Commit format
 
@@ -433,44 +452,44 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `build`, `ci
 
 ---
 
-## 📄 License
+## License
 
 Released under the MIT License.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
-- **Expo** — React Native tooling and OTA workflow
-- **MongoDB Atlas** — free-tier cloud database
-- **Swagger UI** — the interactive API reference
-
----
-
-## 📞 Contact & Support
-
-- **Issues** — <https://github.com/Souvik-Cyclic/Unimanga/issues>
-- **Pull requests** — <https://github.com/Souvik-Cyclic/Unimanga/pulls>
+- **Expo** - React Native tooling and OTA workflow
+- **MongoDB Atlas** - free-tier cloud database
+- **Swagger UI** - the interactive API reference
 
 ---
 
-## 🗺️ Roadmap
+## Contact & Support
 
-**Phase 1 — Core (done)**
+- **Issues** - <https://github.com/Souvik-Cyclic/Unimanga/issues>
+- **Pull requests** - <https://github.com/Souvik-Cyclic/Unimanga/pulls>
+
+---
+
+## Roadmap
+
+**Phase 1 - Core (done)**
 - [x] Authenticated REST API on MongoDB
 - [x] Expo client with library, reader and history
 - [x] Source adapters for 10 manga sites
 - [x] Dockerised API and CI on both projects
 
-**Phase 2 — Hardening**
+**Phase 2 - Hardening**
 - [ ] Security scanning (SAST and dependency audit) in CI
 - [ ] Automated image publishing on tagged releases
 - [ ] Rate limiting and refresh tokens
 
-**Phase 3 — Observability**
+**Phase 3 - Observability**
 - [ ] Structured request logging
 - [ ] Metrics and alerting
 
-**Phase 4 — Performance**
+**Phase 4 - Performance**
 - [ ] Catalogue caching layer
 - [ ] Offline chapter storage on device
