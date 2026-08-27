@@ -13,6 +13,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { apiService, ReadHistoryEntry } from '../../services/api.service';
 import { cleanMangaTitle } from '../../utils/mangaHelpers';
 import { Toast, useToast } from '../../components/Toast';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../constants/ThemeContext';
 import { Cover, Data, EmptyState, GhostButton, Halftone, Sheet } from '../../components/ui';
 import MangaQuickView from '../../components/MangaQuickView';
@@ -43,6 +44,7 @@ function clockTime(when: Date): string {
 export default function HistoryScreen() {
   const router = useRouter();
   const { colors, type, scheme } = useTheme();
+  const insets = useSafeAreaInsets();
   const { toast, showToast, hideToast } = useToast();
 
   const [sections, setSections] = useState<DaySection[]>([]);
@@ -139,7 +141,7 @@ export default function HistoryScreen() {
       <View
         style={{
           paddingHorizontal: 20,
-          paddingTop: 52,
+          paddingTop: insets.top + 14,
           paddingBottom: 16,
           flexDirection: 'row',
           alignItems: 'center',

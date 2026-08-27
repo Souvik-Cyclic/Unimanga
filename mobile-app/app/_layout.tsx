@@ -1,6 +1,7 @@
 import '../global.css';
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
 import { ThemeProvider, useTheme } from '../constants/ThemeContext';
 
@@ -12,9 +13,11 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider>
-      <ThemedStack />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <ThemedStack />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 

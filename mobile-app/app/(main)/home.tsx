@@ -16,6 +16,7 @@ import { useAuthStore } from '../../store/authStore';
 import { apiService, Website, UserManga } from '../../services/api.service';
 import { cleanMangaTitle, formatChapterDisplay, calculateProgress } from '../../utils/mangaHelpers';
 import { useLibrary, useMangaActions, useMangaMenu } from '../../hooks/useLibrary';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../constants/ThemeContext';
 import { Toast, useToast } from '../../components/Toast';
 import MangaQuickView from '../../components/MangaQuickView';
@@ -38,6 +39,7 @@ import {
 
 export default function HomeScreen() {
   const { colors, type, statusMeta, scheme, toggle } = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
   const [activeTab, setActiveTab] = useState<'sources' | 'library'>('library');
@@ -294,10 +296,11 @@ export default function HomeScreen() {
           so the top of the screen carries their collection rather than stock art. */}
       <CoverWash uris={washCovers} height={250} opacity={0.34} />
 
-      {/* Masthead */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <View style={{ flex: 1 }}>
+      {/* Masthead. The top padding follows the device inset rather than a fixed
+          value, so the wordmark clears tall status bars and notches. */}
+      <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 16 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flex: 1, minWidth: 0, marginRight: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
               <Image
                 source={require('../../assets/logo.png')}
@@ -305,19 +308,21 @@ export default function HomeScreen() {
                 resizeMode="contain"
                 accessibilityIgnoresInvertColors
               />
-              <Text style={[type.display, { fontSize: 34, textTransform: 'uppercase' }]}>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+                style={[type.display, { fontSize: 34, textTransform: 'uppercase', flexShrink: 1 }]}
+              >
                 UniManga
               </Text>
               <View
                 style={{ width: 8, height: 8, backgroundColor: colors.accent, marginLeft: 4, marginBottom: 7 }}
               />
             </View>
-            <Data style={{ marginTop: 4 }}>
-              {stats.series} SERIES · {stats.reading} READING · {stats.chapters} CH READ
-            </Data>
           </View>
 
-          <View style={{ flexDirection: 'row' }}>
+          <View style={{ flexDirection: 'row', flexShrink: 0 }}>
             <TouchableOpacity
               onPress={toggle}
               activeOpacity={0.85}
@@ -385,6 +390,12 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Stats sit under the row, at full width, so a long count cannot
+            squeeze the wordmark or wrap onto a second line. */}
+        <Data style={{ marginTop: 6 }}>
+          {stats.series} SERIES · {stats.reading} READING · {stats.chapters} CH READ
+        </Data>
       </View>
 
       {/* Tab switcher — two hard panels, no gap between them */}

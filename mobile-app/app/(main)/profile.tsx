@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { authService } from '../../services/auth.service';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../constants/ThemeContext';
 import { Toast, useToast } from '../../components/Toast';
 import { Data, Eyebrow, Field, GhostButton, PrimaryButton, Sheet } from '../../components/ui';
@@ -59,6 +60,7 @@ export default function ProfileScreen() {
   const logout = useAuthStore((state) => state.logout);
   const { toast, showToast, hideToast } = useToast();
   const { colors, type, scheme, preference, setPreference } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [editingProfile, setEditingProfile] = useState(false);
   const [username, setUsername] = useState(user?.username ?? '');
@@ -168,7 +170,7 @@ export default function ProfileScreen() {
       <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={colors.gutter} />
 
       {/* Header */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 52, paddingBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
         <TouchableOpacity
           onPress={() => router.back()}
           activeOpacity={0.85}
