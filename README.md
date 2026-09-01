@@ -17,7 +17,8 @@ user's library, categories and reading progress in MongoDB.
 - [Screenshots](#screenshots)
 - [Architecture](#architecture)
 - [Repository Layout](#repository-layout)
-- [Getting Started](#getting-started)
+- [Installation](#installation)
+- [Setting Up Locally](#setting-up-locally)
 - [Running Locally](#running-locally)
 - [API Reference](#api-reference)
 - [Continuous Integration](#continuous-integration)
@@ -153,7 +154,24 @@ touches the API - it happens in the WebView on the device.
 
 ---
 
-## Getting Started
+## Installation
+
+Just want the app? Grab the latest APK from the
+[Releases page](https://github.com/Souvik-Cyclic/Unimanga/releases/latest) -
+no build step needed, it talks to the hosted API out of the box.
+
+| File | Use for |
+|------|---------|
+| [`unimanga-1.0.1-arm64-v8a.apk`](https://github.com/Souvik-Cyclic/Unimanga/releases/download/v1.0.1/unimanga-1.0.1-arm64-v8a.apk) | Any phone from the last decade (64-bit) |
+| [`unimanga-1.0.1-armeabi-v7a.apk`](https://github.com/Souvik-Cyclic/Unimanga/releases/download/v1.0.1/unimanga-1.0.1-armeabi-v7a.apk) | Older 32-bit devices |
+
+Download, allow installs from unknown sources when prompted, and install.
+
+---
+
+## Setting Up Locally
+
+For development, or to run against your own backend instead of the hosted one.
 
 ### Prerequisites
 
